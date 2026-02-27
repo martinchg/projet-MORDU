@@ -1,0 +1,11 @@
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+
+# Environnement Node.js (Frontend)
+node_modules/
+dist/
+
+# Fichiers système Mac
+.DS_Store
