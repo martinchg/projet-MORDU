@@ -5,3 +5,12 @@ __pycache__/
 dist/
 *.pyc
 .DS_Store
+
+# Python
+backend/venv/
+backend/.env
+__pycache__/
+
+# JavaScript
+frontend/node_modules/
+frontend/dist/
