@@ -1,41 +1,52 @@
-# MORDU Project
+# MORDU
 
-## Prérequis
+Plateforme de recommandation de films par IA. MORDU suggère des films selon ton humeur, le temps que tu as, et ton profil cinématographique — avec pour chaque film l'accroche la plus marquante possible.
 
-- Python 3.8+
-- Node.js
+## Vision
 
-## Installation et Lancement
+- Recommandations contextuelles (humeur + temps disponible)
+- "La meilleure phrase" sur chaque film : record, anecdote, classement, controverse
+- Profil utilisateur construit via onboarding (5 films préférés + personnalité)
+- Perles cachées personnalisées
+- Mode groupe
+- Application mobile (migration vers Expo en cours)
 
-### 1. Backend (Python/FastAPI)
+## Structure
 
-1. Ouvrir un terminal dans `backend/`.
-2. Installer les dépendances :
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Lancer le serveur :
-   ```bash
-   uvicorn main:app --reload
-   ```
-   Le serveur sera accessible sur [http://127.0.0.1:8000](http://127.0.0.1:8000).
+```
+backend/         FastAPI (Python) — API + moteur de reco (voir ROADMAP-cerveau.md)
+mobile/          App Expo / React Native (cible réelle)
+design/dither/   Maquette de direction artistique « dither »
+```
 
-### 2. Frontend (React/Vite)
+## Stack
 
-1. Ouvrir un nouveau terminal dans `frontend/`.
-2. Installer les dépendances :
-   ```bash
-   npm install
-   ```
-3. Lancer l'application :
-   ```bash
-   npm run dev
-   ```
-   L'application sera accessible sur [http://localhost:5173](http://localhost:5173).
+**App mobile (cible)** — Expo / React Native (`mobile/`)
+**Backend** — FastAPI (Python) + Uvicorn (`backend/`)
+**Moteur de reco** — content-based : embeddings de synopsis (`all-MiniLM-L6-v2`) + similarité cosinus
 
-## Corrections Apportées
+## Installation
 
-- **index.html** manquant a été créé correctement pour Vite.
-- **Config Vite & Tailwind** ajoutée pour le style et le build.
-- **BentoCard** corrigé pour être cliquable.
-- **requirements.txt** ajouté pour le backend.
+### Backend
+
+```bash
+cd backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload      # http://127.0.0.1:8000
+```
+
+Le moteur de reco a besoin d'une clé TMDB dans `backend/.env` (`TMDB_API_KEY=...`).
+
+### App mobile (Expo)
+
+```bash
+cd mobile
+npm install
+npx expo start
+```
+
+## État du projet
+
+Prototype. Direction artistique figée (`design/dither/`). Moteur de reco en construction
+selon `ROADMAP-cerveau.md` (jalons J0 → J5).

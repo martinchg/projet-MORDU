@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MORDU — Dither sur vraies affiches</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="stage" id="stage">
+  <header class="head">
+    <span class="kicker"><b></b>MORDU · Dither · Prise 5 · Mood-drift</span>
+    <h1>La pâte suit l'humeur.</h1>
+    <p>Vraies images de tes films, tramées en direct. En plus : choisis une humeur et <b>toute la pâte glisse en douceur</b> — vers le bleu-noir quand c'est froid/dramatique, vers le rouge-orange quand c'est nerveux. Le <b>grain s'anime au survol</b> du poster (pas en boucle). Règle la taille des pixels. Palette couleur ou 1-bit, au choix.</p>
+  </header>
+
+  <div class="controls">
+    <div class="ctl"><span class="lab">Palette</span>
+      <button data-k="mode" data-v="night" aria-pressed="true">Nuit couleur <span class="s">~11 tons</span></button>
+      <button data-k="mode" data-v="onebit" aria-pressed="false">1-bit + rouge <span class="s">mono · niche</span></button>
+    </div>
+    <div class="ctl"><span class="lab">Pixels</span>
+      <button data-k="size" data-v="fin" aria-pressed="false">Fin</button>
+      <button data-k="size" data-v="moyen" aria-pressed="true">Moyen</button>
+      <button data-k="size" data-v="gros" aria-pressed="false">Gros</button>
+    </div>
+  </div>
+
+  <div class="showroom">
+    <div class="stagewrap">
+      <div class="phone" id="phone">
+        <div class="island"></div>
+        <div class="screen" id="screen">
+          <div class="scroll" id="scroll">
+            <div class="banner"><canvas id="banner" width="320" height="132"></canvas></div>
+            <div class="status">
+              <span>21:42</span>
+              <span class="r">
+                <span class="bars"></span>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.5c2 0 3.8.8 5 2l1.2-1.3A9 9 0 0 0 8 .8 9 9 0 0 0 1.8 3.2L3 4.5A7 7 0 0 1 8 2.5Zm0 6.7L9.7 11 8 12.2 6.3 11 8 9.2Z"/></svg>
+                <svg width="24" height="12" viewBox="0 0 24 12"><rect x="1" y="2" width="19" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="2.5" y="3.5" width="12" height="5" rx="1" fill="currentColor"/><rect x="21" y="4.5" width="1.6" height="3" rx=".8" fill="currentColor"/></svg>
+              </span>
+            </div>
+
+            <div class="app">
+              <div class="app-head">
+                <span class="brand">MORDU</span>
+                <span class="tagd">SÉANCE 07<br>JEU · 21:42</span>
+              </div>
+
+              <div class="prompt" id="moodPrompt">Ce soir, tu es</div>
+              <div class="chips" id="moods"></div>
+
+              <div class="prompt">Temps</div>
+              <div class="times" id="times">
+                <span class="time">30 MIN</span>
+                <span class="time on">1 H</span>
+                <span class="time">1 H 30</span>
+                <span class="time">SANS LIMITE</span>
+              </div>
+
+              <div class="hero" id="hero"></div>
+
+              <div class="section"><h2>Perles cachées</h2><span class="more">TOUT VOIR</span></div>
+              <div class="grid" id="grid"></div>
+            </div>
+
+            <nav class="tabbar">
+              <span class="tab on"><i style="--ic:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z%22/></svg>')"></i>Découvrir</span>
+              <span class="tab"><i style="--ic:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%229%22/></svg>')"></i>Humeur</span>
+              <span class="tab"><i style="--ic:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M12 3v18M6 7l12 10M18 7L6 17%22 stroke=%22black%22 stroke-width=%222%22 fill=%22none%22/></svg>')"></i>ADN</span>
+              <span class="tab"><i style="--ic:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%228%22 r=%224%22/><path d=%22M4 21c0-4 4-6 8-6s8 2 8 6%22/></svg>')"></i>Profil</span>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="spec">
+      <span class="badge">Ton idée, démontrée</span>
+      <h2>Avant / Après.</h2>
+      <p class="tag">La même image, à gauche l'originale, à droite passée dans le <b>dithering MORDU</b>. Calculé en direct, de <b>vrais pixels</b>. Change la palette, la taille de pixels et l'humeur en haut : le résultat suit.</p>
+
+      <div class="card">
+        <h3>Le pipeline, en deux temps</h3>
+        <div class="steps">
+          <div class="st"><canvas id="stepA" width="176" height="121"></canvas><span>Affiche brute</span></div>
+          <div class="ar">→</div>
+          <div class="st"><canvas id="stepB" width="176" height="121"></canvas><span>Tramée MORDU</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Nouveautés de cette prise</h3>
+        <div class="kept">
+          <div class="k"><b>NEW</b><span>Mood-drift : toute la pâte glisse vers une température (bleu-noir ↔ rouge-orange).</span></div>
+          <div class="k"><b>NEW</b><span>Grain animé au survol du poster seulement — plus en boucle.</span></div>
+          <div class="k"><b>NEW</b><span>Taille de pixels réglable (Fin / Moyen / Gros).</span></div>
+          <div class="k"><b>NEW</b><span>Typo variée : chaque film a sa propre typo de titre (Impact / Didot / typewriter / Futura…), toujours en 3D rouge.</span></div>
+          <div class="k"><b>GARDÉ</b><span>Effet 3D, pointillés des temps, registre enquête.</span></div>
+        </div>
+      </div>
+
+      <div class="verdict">
+        <div class="p pro"><h4>Pourquoi c'est fort</h4><p>Le mood-drift rend la navigation vivante sans un seul flou : c'est ton idée du thème qui « balance ». Tout est déterministe, gratuit, temps réel.</p></div>
+        <div class="p con"><h4>Le risque</h4><p>Assumé : moins accessible. Côté app, cacher les images tramées pour ne pas recalculer à chaque scroll.</p></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <p><b>On fige ça ?</b> Survole le grand poster (grain animé), clique les humeurs (la pâte glisse), teste les tailles de pixels. Puis on attaque le moteur de reco dès que t'as la clé TMDB.</p>
+    <span class="sig">MORDU · v0 · dither réel · mood-drift</span>
+  </footer>
+</div>
+<script src="posters.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,16 +1,42 @@
-# Environnements et dépendances
-venv/
-node_modules/
-__pycache__/
-dist/
-*.pyc
+# === macOS ===
 .DS_Store
 
-# Python
-backend/venv/
-backend/.env
-__pycache__/
+# === Secrets — NE JAMAIS committer ===
+.env
+.env.*
+!.env.example
 
-# JavaScript
-frontend/node_modules/
-frontend/dist/
+# === Python ===
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# === Données générées du moteur de reco (voir ROADMAP-cerveau.md) ===
+# Tout le dossier data/ est régénérable (ingest.py / embed.py / canon.py) — jamais committé.
+backend/recommender/data/
+*.npy
+*.tsv
+*.tsv.gz
+movies.json
+domaines.json
+embeddings.npy
+
+# === JavaScript / Node / Expo ===
+node_modules/
+dist/
+.expo/
+
+# === iOS natif (Expo prebuild) ===
+ios/Pods/
+ios/build/
+
+# === Maquette design : posters générés (base64) + images TMDB (copyright) + build ===
+posters.js
+posters/
+_standalone.html
+
+# === Claude Code (local) ===
+.claude/worktrees/
+.claude/launch.json
+.claude/settings.local.json
