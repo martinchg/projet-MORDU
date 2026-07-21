@@ -216,16 +216,35 @@ d'où : la serrure ressenti est le cœur, c'est elle qui fabrique la donnée uni
   sur pourquoi » = 3 arêtes riches jour 1) suffit-il ? L'import CSV Letterboxd est jugé
   non viable par Martin (friction). À valider en vrai.
 
-## 10. La v0 (rappel — après le tri, on code ÇA et rien d'autre)
+## 10. La v0 — CONSTRUITE (21/07/2026)
 
-1. `POST /api/oracle` — 3 cartes aux axes orthogonaux sur le moteur actuel (proche du
-   profil / écart tempéré / pari) + exclusion des vus. PIÈGE : les cartes non choisies ne
-   vont JAMAIS en `disliked_ids` (le moteur actuel fait ça avec les paires d'onboarding —
-   ne pas hériter).
-2. Serrure : `POST /api/ressenti` → JSONL append-only ; condition du tirage suivant.
-3. L'écran du rituel (webclient) : trois cartes tramées, arguments visibles, choix →
-   révélation (overview TMDB comme argument provisoire).
-4. Ensuite seulement : hooks Wikipédia, boîte aux lettres, portraits, Wrapped.
+Fait, testé de bout en bout dans le navigateur (57 tests dans `backend/tests_oracle.py`) :
+
+1. **`GET /api/oracle`** — 3 cartes aux axes orthogonaux (`recommender/oracle.py`).
+   Bandes en PERCENTILES (adaptatif à n'importe quel profil, pas de seuil en dur),
+   orthogonalité garantie entre cartes, suites orphelines écartées, qualité en départage.
+   Les cartes non choisies ne vont JAMAIS en `disliked_ids`.
+2. **Arguments générés** — `<ce qui relie> mais <ce qui diffère>`, en français, moules
+   variés. Ancre par réal / acteur / motif rare (pondéré IDF) avec repli de genre.
+   Leçon apprise : la sémantique décide, l'ancre ne fait qu'argumenter — l'inverse
+   sortait Transformers à un amateur de Miyazaki.
+3. **Serrure** — `POST /api/choix` puis `POST /api/ressenti` → arêtes en JSONL
+   append-only (`recommender/aretes.py`), valence dérivée du texte. Pas de tirage tant
+   que le précédent n'est pas raconté.
+4. **Écran du rituel** — `design/webclient/oracle.html` : choix à l'aveugle (affiches
+   tramées, arguments lisibles) puis révélation animée du film choisi.
+5. **Faits croustillants** — `recommender/hooks.py`, extraits de Wikipédia, film résolu
+   via Wikidata P345 (identifiant IMDb) et non par titre. Les faits ternes (box-office)
+   sont écartés au profit d'un candidat de repli.
+6. **Canon en ingrédient invisible** — un essentiel n'est cité que si la personne est
+   déjà dans tes arêtes (invitation), jamais depuis une liste absolue (dette).
+
+Reste à faire : la boîte aux lettres, les portraits qui se dé-pixelisent, le Wrapped,
+le pari de l'oracle (§9), et la projection des ressentis sur les axes du Tag Genome
+(qui remplacera la valence lexicale — plancher assumé).
+
+**Juge de paix (objection 8, la seule sans réponse verbale possible) : v0 + trois semaines
+d'usage réel par Martin. On compte les arêtes. C'est le test de l'homme qui existe.**
 
 **Juge de paix (objection 8, la seule sans réponse verbale possible) : v0 + trois semaines
 d'usage réel par Martin. On compte les arêtes. C'est le test de l'homme qui existe.**
