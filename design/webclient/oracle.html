@@ -47,6 +47,17 @@
   .jugement .q{font-size:13.5px;line-height:1.5;color:var(--mut)}
   .jugement .q b{color:var(--ink)}
   .serrure{border:1px solid var(--red);background:rgba(228,19,15,.06);padding:20px;margin-top:14px}
+  /* onboarding : un film + POURQUOI. Sans le texte, une graine ne porte ni
+     vocabulaire ni axe d'attention — le profil repose alors sur le premier
+     ressenti écrit, qui le tire tout entier vers lui. */
+  .choisi{border:1px solid var(--line);background:var(--panel);padding:11px 13px;margin-bottom:9px}
+  .choisi .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .choisi .t{font-family:var(--disp);text-transform:uppercase;font-size:16px}
+  .choisi .x{font-family:var(--mono);font-size:10px;color:var(--mut);cursor:pointer}
+  .choisi .x:hover{color:var(--red)}
+  .choisi textarea{min-height:56px;margin-top:7px;font-size:13.5px}
+  .choisi.court{border-color:rgba(228,19,15,.5)}
+  .choisi .cpt{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
   .res{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:11px;margin-top:14px}
   .res .f{cursor:pointer;border:1px solid transparent;transition:border-color .15s,transform .15s}
   .res .f:hover{transform:translateY(-3px)}
@@ -146,42 +157,80 @@ async function router(){
 
 /* --- 1. onboarding : des arêtes, pas des cases à cocher --- */
 function vueOnboarding(){
+  const N=5, MIN=15;
   vue.innerHTML=`<h2 id="h"></h2>
-    <p class="hint">Cite trois films que tu as <b>adorés</b>. Pas les meilleurs — ceux qui sont restés.
-    C'est tout ce dont j'ai besoin pour commencer<span class="long"> ; le reste, tu me le raconteras
-    au fil des soirs</span>.</p>
+    <p class="hint">Cite <b>${N} films</b> que tu as adorés — et pour chacun, <b>une ligne
+    sur ce qui t'a marqué</b>. Le texte n'est pas décoratif : c'est lui qui porte ton
+    vocabulaire et tes axes d'attention.<span class="long"> Sans lui je n'ai que des
+    titres, et mon premier ressenti écrit tirerait tout le profil vers lui.</span></p>
     <input type="text" id="q" placeholder="cherche un film…" autocomplete="off">
     <div class="res" id="res"></div>
-    <div class="row"><button class="btn" id="ok" style="display:none">Commencer →</button>
-      <span class="compte" id="cpt">0 / 3</span></div>`;
-  titre(document.getElementById("h"),"D'abord, trois films");
+    <div id="liste" style="margin-top:16px"></div>
+    <div class="row"><button class="btn" id="ok" disabled>Commencer →</button>
+      <span class="compte" id="cpt">0 / ${N}</span></div>`;
+  titre(document.getElementById("h"),"D'abord, cinq films");
   const q=document.getElementById("q"), res=document.getElementById("res"),
-        ok=document.getElementById("ok"), cpt=document.getElementById("cpt");
+        liste=document.getElementById("liste"), ok=document.getElementById("ok"),
+        cpt=document.getElementById("cpt");
   let choisis=[], last=0;
+
+  function pret(){
+    const n=choisis.length;
+    const tousDecrits=choisis.every(c=>(c.texte||"").trim().length>=MIN);
+    cpt.textContent=`${n} / ${N}`+(n===N&&!tousDecrits?" — il manque des descriptions":"");
+    ok.disabled=!(n===N&&tousDecrits);
+  }
+  function rendreListe(){
+    liste.innerHTML=choisis.map((c,i)=>`<div class="choisi" data-i="${i}">
+      <div class="h"><span class="t">${esc(c.title)}</span><span class="x">retirer ✕</span></div>
+      <textarea placeholder="ce qui t'a marqué dans ce film…">${esc(c.texte||"")}</textarea>
+      <div class="cpt"></div></div>`).join("");
+    liste.querySelectorAll(".choisi").forEach((el,i)=>{
+      const ta=el.querySelector("textarea"), cp=el.querySelector(".cpt");
+      const maj=()=>{ choisis[i].texte=ta.value;
+        const n=ta.value.trim().length;
+        el.classList.toggle("court", n>0 && n<MIN);
+        cp.textContent = n>=MIN ? "✓" : `${n}/${MIN} caractères minimum`;
+        pret(); };
+      ta.addEventListener("input",maj); maj();
+      el.querySelector(".x").addEventListener("click",()=>{
+        choisis.splice(i,1); rendreListe(); pret(); });
+    });
+  }
+
   q.addEventListener("input",async()=>{
     const s=q.value.trim(); if(s.length<2){res.innerHTML="";return;}
-    const t=++last; const films=await GET(`/api/movies?search=${encodeURIComponent(s)}&limit=12`);
+    const t=++last; const films=await GET(`/api/movies?search=${encodeURIComponent(s)}&limit=10`);
     if(t!==last) return;
-    res.innerHTML=films.map(f=>`<div class="f${choisis.find(c=>c.id===f.id)?' on':''}" data-id="${f.id}">
-      <canvas></canvas><div class="t">${f.title}</div></div>`).join("");
+    res.innerHTML=films.map(f=>`<div class="f${choisis.find(c=>c.id===f.id)?' on':''}"
+      data-id="${f.id}"><canvas></canvas><div class="t">${esc(f.title)}</div></div>`).join("");
     res.querySelectorAll(".f").forEach((el,i)=>{
       const f=films[i];
-      // même matière que partout : les vignettes sont déjà tramées, à peine lisibles
       MORDU.tramer(el.querySelector("canvas"), img(f.poster_path),
         {net:.55, temperature:MORDU.temperature(f), w:110, h:165, pixMin:26});
       const im=img(f.poster_path);
-      if(im && !im.complete) im.addEventListener("load",()=>MORDU.tramer(el.querySelector("canvas"),im,
-        {net:.55,temperature:MORDU.temperature(f),w:110,h:165,pixMin:26}),{once:true});
+      if(im && !im.complete) im.addEventListener("load",()=>MORDU.tramer(
+        el.querySelector("canvas"),im,{net:.55,temperature:MORDU.temperature(f),
+        w:110,h:165,pixMin:26}),{once:true});
       el.addEventListener("click",()=>{
-        const j=choisis.findIndex(c=>c.id===f.id);
-        if(j>=0) choisis.splice(j,1); else if(choisis.length<3) choisis.push(f);
-        el.classList.toggle("on");
-        cpt.textContent=`${choisis.length} / 3`;
-        ok.style.display=choisis.length===3?"inline-block":"none";
+        if(choisis.find(c=>c.id===f.id)) return;
+        if(choisis.length>=N){ cpt.textContent=`${N} maximum — retire-en un`; return; }
+        choisis.push({id:f.id,title:f.title,texte:""});
+        q.value=""; res.innerHTML=""; rendreListe(); pret();
       });
     });
   });
-  ok.addEventListener("click",async()=>{ await POST("/api/graines",{ids:choisis.map(c=>c.id)}); router(); });
+
+  ok.addEventListener("click",async()=>{
+    ok.disabled=true; ok.textContent="…";
+    try{
+      await POST("/api/graines",{films:choisis.map(c=>
+        ({film_id:c.id,titre:c.title,texte:c.texte.trim()}))});
+      router();
+    }catch(e){ ok.disabled=false; ok.textContent="Commencer →";
+      cpt.textContent="erreur — vérifie les descriptions"; }
+  });
+  pret();
 }
 
 /* --- 2. les trois cartes, à l'aveugle --- */

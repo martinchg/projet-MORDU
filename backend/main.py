@@ -218,8 +218,15 @@ class RessentiRequest(BaseModel):
     corrige: str | None = None
 
 
+class GraineRequest(BaseModel):
+    film_id: int
+    titre: str | None = None
+    texte: str = ""            # « pourquoi celui-là ? » — obligatoire côté API
+
+
 class GrainesRequest(BaseModel):
-    ids: list[int]
+    ids: list[int] = []                    # ancienne forme, conservée
+    films: list[GraineRequest] = []        # nouvelle : film + description
 
 
 @app.get("/api/oracle")
@@ -331,10 +338,37 @@ def api_aretes():
     return aretes.toutes()
 
 
+MIN_GRAINES = 5
+MIN_TEXTE_GRAINE = 15
+
+
 @app.post("/api/graines")
 def api_graines(req: GrainesRequest):
-    """Onboarding : les films-graines (cold start, cf. MANIFESTE §9)."""
-    aretes.poser_graines(req.ids)
+    """Onboarding : des ARÊTES, pas des identifiants nus (MANIFESTE §9).
+
+    Le manifeste demandait « N films adorés ET une ligne sur pourquoi » ; seule la
+    première moitié était implémentée. Des graines sans texte ne portent ni le
+    vocabulaire ni les axes d'attention de la personne — le profil reposait alors
+    presque entièrement sur le premier ressenti écrit, qui le tirait tout entier vers
+    lui. On exige donc une description par film, et on écrit de vraies arêtes.
+    """
+    if req.films:
+        if len(req.films) < MIN_GRAINES:
+            return Response(status_code=400,
+                            content=f"il faut {MIN_GRAINES} films".encode())
+        courts = [f.titre or f.film_id for f in req.films
+                  if len((f.texte or "").strip()) < MIN_TEXTE_GRAINE]
+        if courts:
+            return Response(status_code=400,
+                            content=f"description trop courte : {courts}".encode())
+        for f in req.films:
+            aretes.ajouter(f.film_id, f.texte.strip(), f.titre,
+                           registre="onboarding", extra={"source": "onboarding"})
+        aretes.poser_graines([f.film_id for f in req.films])
+        return {"ok": True, "graines": aretes.graines(),
+                "aretes": len(aretes.toutes())}
+
+    aretes.poser_graines(req.ids)          # ancienne forme (compatibilité)
     return {"ok": True, "graines": aretes.graines()}
 
 
@@ -345,6 +379,25 @@ def api_etat():
             "en_attente": aretes.en_attente(),
             "boite": len(aretes.boite()),
             "palmares": aretes.palmares()}
+
+
+@app.get("/api/graines_muettes")
+def api_graines_muettes():
+    """Films de départ qui n'ont PAS de description.
+
+    Ceux-là ne portent ni vocabulaire ni axe d'attention : ils ne pèsent que par leur
+    vecteur. Les compléter enrichit le profil sans rien effacer — on ajoute une arête,
+    on ne réécrit aucune donnée existante.
+    """
+    racontes = aretes.films_racontes()
+    out = []
+    for i in aretes.graines():
+        if i in racontes or i not in _ID2IDX:
+            continue
+        m = _movies[_ID2IDX[i]]
+        out.append({"film_id": i, "titre": m.get("title"), "year": m.get("year"),
+                    "poster_path": m.get("poster_path"), "genres": m.get("genres")})
+    return out
 
 
 @app.get("/api/vus")

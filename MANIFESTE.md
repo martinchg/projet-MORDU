@@ -220,9 +220,14 @@ d'où : la serrure ressenti est le cœur, c'est elle qui fabrique la donnée uni
   d'un jeu sans la culpabilité d'un streak, et ça transformerait la serrure (corriger sa
   copie) en moment savoureux plutôt qu'en péage. Risque : une prédiction ratée trop
   souvent abîme le personnage.
-- Cold start (le trou reconnu) : l'onboarding-arêtes (« cite 3 films adorés + une ligne
-  sur pourquoi » = 3 arêtes riches jour 1) suffit-il ? L'import CSV Letterboxd est jugé
-  non viable par Martin (friction). À valider en vrai.
+- ~~Cold start~~ **RÉSOLU (21/07)** : l'onboarding demande désormais **5 films ET une
+  description par film** (min. 15 caractères), et écrit de vraies arêtes. La v1 ne
+  gardait que les titres — Martin l'a constaté à l'usage : ses 3 graines muettes ne
+  pesaient rien et son unique ressenti écrit tirait tout le profil vers l'anime.
+  Mesuré : 5 films décrits donnent 5 arêtes, un portrait « fiable » dès le jour 1,
+  une empreinte à 42 % de finesse (contre 17 %) et des motifs cohérents au lieu de
+  dispersés. Les graines muettes existantes peuvent être complétées depuis le profil,
+  sans rien effacer. L'import CSV Letterboxd reste jugé non viable (friction).
 
 ## 10. La v0 — CONSTRUITE (21/07/2026)
 

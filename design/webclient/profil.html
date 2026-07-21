@@ -80,6 +80,14 @@
   .emp .txt b{color:var(--ink)}
   .emp .fin{height:5px;background:#191d24;margin-top:9px}
   .emp .fin i{display:block;height:100%;background:var(--red);transition:width .5s}
+  /* compléter les films de départ restés muets */
+  .muet{border:1px solid var(--red);background:rgba(228,19,15,.05);padding:16px 17px;margin-bottom:16px}
+  .muet .f{display:flex;gap:12px;align-items:flex-start;margin-top:12px}
+  .muet .f canvas{width:64px;height:96px;flex:0 0 64px;image-rendering:pixelated;background:#0a0c10}
+  .muet .f .z{flex:1}
+  .muet .f .t{font-family:var(--disp);text-transform:uppercase;font-size:15px}
+  .muet textarea{min-height:52px;margin-top:5px;font-size:13px}
+  .muet .cpt{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
   .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
 </style>
 </head>
@@ -158,6 +166,7 @@ function barres(items, cle, val){
        ce que personne d'autre ne peut deviner de toi.</p>`;
 
   vue.innerHTML=`
+    <div id="muet"></div>
     <h2 id="hc" style="margin-top:4px"></h2>
     <p class="hint">Les 1022 films projetés depuis <b>384 dimensions</b> vers un plan
     (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
@@ -219,6 +228,50 @@ function barres(items, cle, val){
     <h2 style="margin-top:30px" id="h2a"></h2>
     <div id="ars"></div>`;
   MORDU.resoudreTexte(document.getElementById("h2a"),"Tes ressentis",{duree:700});
+
+  // ---- COMPLÉTER LES FILMS DE DÉPART MUETS ----
+  // Une graine sans texte ne porte ni vocabulaire ni axe d'attention : elle ne pèse
+  // que par son vecteur. La compléter AJOUTE une arête — rien n'est réécrit.
+  try{
+    const muets=await GET("/api/graines_muettes");
+    if(muets.length){
+      const MIN=15, el=document.getElementById("muet");
+      el.className="muet";
+      el.innerHTML=`<div class="lbl">Tes films de départ n'ont pas de description</div>
+        <p class="vide" style="margin:0">Ces ${muets.length} films ne pèsent que par leur
+        vecteur : ils n'apportent ni ton vocabulaire ni tes axes d'attention. Les décrire
+        <b>ajoute</b> une arête — rien n'est effacé.</p>
+        ${muets.map((m,i)=>`<div class="f" data-i="${i}"><canvas></canvas><div class="z">
+          <div class="t">${esc(m.titre)}</div>
+          <textarea placeholder="ce qui t'a marqué dans ce film…"></textarea>
+          <div class="cpt"></div></div></div>`).join("")}
+        <button class="btn" id="envm" disabled>Enregistrer →</button>`;
+      const b=document.getElementById("envm");
+      const etat=muets.map(()=>"");
+      el.querySelectorAll(".f").forEach((f,i)=>{
+        const m=muets[i], cv=f.querySelector("canvas"), im=img(m.poster_path);
+        const go=()=>MORDU.tramer(cv,im,{net:.5,temperature:MORDU.temperature(m),w:64,h:96,pixMin:14});
+        if(im&&!im.complete) im.addEventListener("load",go,{once:true}); go();
+        const ta=f.querySelector("textarea"), cp=f.querySelector(".cpt");
+        ta.addEventListener("input",()=>{
+          etat[i]=ta.value; const n=ta.value.trim().length;
+          cp.textContent = n>=MIN ? "✓" : (n?`${n}/${MIN} caractères minimum`:"");
+          b.disabled = !etat.some(t=>t.trim().length>=MIN);
+        });
+      });
+      b.addEventListener("click",async()=>{
+        b.disabled=true; b.textContent="…";
+        for(let i=0;i<muets.length;i++){
+          const t=(etat[i]||"").trim();
+          if(t.length<MIN) continue;
+          await fetch(API+"/api/ressenti",{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({film_id:muets[i].film_id,texte:t,titre:muets[i].titre,
+                                 registre:"onboarding"})});
+        }
+        location.reload();
+      });
+    }
+  }catch(e){}
 
   // ---- L'EMPREINTE ----
   // Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en

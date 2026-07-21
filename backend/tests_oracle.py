@@ -252,6 +252,36 @@ def test_relecture_ne_vole_pas_la_voix():
     check("texte vide -> None", relecture.relire("") is None)
 
 
+def test_onboarding_exige_des_descriptions():
+    """MANIFESTE §9 : l'onboarding devait être « N films adorés ET une ligne sur
+    pourquoi ». Seule la première moitié était implémentée — des graines sans texte ne
+    portent ni vocabulaire ni axe d'attention, et le premier ressenti écrit tirait alors
+    tout le profil vers lui (constaté à l'usage : dérive vers l'anime)."""
+    from recommender.profil_vue import construire
+    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners", "Fight Club", "12 Angry Men"])
+    if len(seeds) < 5:
+        return
+    muet = construire(seeds, [])
+    parle = construire(seeds, [
+        {"film_id": seeds[0], "valence": .8,
+         "texte": "lambiance poisseuse et la fin qui laisse KO"},
+        {"film_id": seeds[1], "valence": .8,
+         "texte": "lobsession de lenquete qui devore les personnages"},
+        {"film_id": seeds[2], "valence": .8,
+         "texte": "la tension morale insoutenable du pere"},
+        {"film_id": seeds[3], "valence": .8,
+         "texte": "la satire du consumerisme et le retournement"},
+        {"film_id": seeds[4], "valence": .8,
+         "texte": "un huis clos ou tout se joue sur la parole"},
+    ])
+    check("sans description : aucun vocabulaire", len(muet["vocabulaire"]) == 0)
+    check(f"avec descriptions : du vocabulaire ({len(parle['vocabulaire'])} mots)",
+          len(parle["vocabulaire"]) >= 8)
+    check("5 descriptions rendent le portrait fiable d'emblée", parle["fiable"] is True)
+    check("l'empreinte est plus fine avec les descriptions",
+          parle["empreinte"]["finesse"] > muet["empreinte"]["finesse"])
+
+
 def test_profil_visible():
     """Un moteur qui apprend sans rien restituer est une boîte noire — et la confiance
     est TOUT le produit. Le profil doit être calculable, et HONNÊTE sur sa minceur."""
@@ -368,7 +398,8 @@ if __name__ == "__main__":
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_valence_recalculee_a_la_lecture,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
-              test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible, test_relecture_ne_vole_pas_la_voix,
+              test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
+              test_relecture_ne_vole_pas_la_voix,
               test_empreinte, test_carte_du_gout,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
