@@ -110,10 +110,11 @@ def _essentiel_de(film, refs):
     for r in refs:
         noms |= set(r.get("director") or [])
         noms |= set((r.get("cast") or [])[:6])
-    for nom, typ in _CANON.get(film.get("id"), []):
-        if nom in noms:
-            return nom, typ
-    return None
+    # un « essentiel de Fincher » (réalisateur) porte du sens ; un « essentiel de Jake
+    # Gyllenhaal » (acteur) beaucoup moins — on privilégie donc les réalisateurs.
+    trouves = [(n, t) for n, t in _CANON.get(film.get("id"), []) if n in noms]
+    trouves.sort(key=lambda x: 0 if x[1] == "director" else 1)
+    return trouves[0] if trouves else None
 
 
 def _load_hooks():
@@ -410,7 +411,7 @@ _MOULES = {
 }
 
 
-def _argument(film, refs, registre, anc=None, variante=0):
+def _argument(film, refs, registre, anc=None, variante=0, canon_permis=True):
     """Construit la phrase d'accroche. Jamais « parce que vous avez regardé ».
 
     Forme visée (celle du manifeste) : <ce qui relie> MAIS <ce qui diffère>.
@@ -440,7 +441,9 @@ def _argument(film, refs, registre, anc=None, variante=0):
     # Le canon en INVITATION : on le mentionne seulement si la personne est déjà dans
     # tes arêtes. « Un essentiel de Fincher, et tu ne l'as pas vu » invite ; « il FAUT
     # avoir vu Citizen Kane » endette. La nuance est toute la ligne du manifeste.
-    ess = _essentiel_de(film, refs)
+    # UNE SEULE carte par tirage y a droit : répétée sur les trois, l'invitation
+    # spéciale devient du papier peint et ne pèse plus rien.
+    ess = _essentiel_de(film, refs) if canon_permis else None
     if ess:
         quoi = {"director": "de", "actor": "de", "studio": "de"}.get(ess[1], "de")
         phrase += f" Un essentiel {quoi} {ess[0]}, que tu n'as pas encore vu."
@@ -458,9 +461,9 @@ REGISTRES = {
 }
 
 
-def _carte(idx, sim, registre, refs, anc=None, variante=0):
+def _carte(idx, sim, registre, refs, anc=None, variante=0, canon_permis=True):
     m = _movies[idx]
-    phrase, croustillant = _argument(m, refs, registre, anc, variante)
+    phrase, croustillant = _argument(m, refs, registre, anc, variante, canon_permis)
     return {
         **{f: m.get(f) for f in _CARTE_FIELDS},
         "registre": registre,
@@ -509,6 +512,7 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
         return []
 
     cartes, pris, sources = [], [], set()
+    canon_cite = False   # l'invitation par le canon : une seule par tirage
     for registre, (plo, phi) in BANDES.items():
         lo, hi = np.percentile(ref_sims, plo), np.percentile(ref_sims, phi)
         bande = np.where(dispo & (sims >= lo) & (sims <= hi))[0]
@@ -563,7 +567,10 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
         a = ancres.get(choix)
         if a:
             sources.add(a[2].get("id"))
-        cartes.append(_carte(choix, sims[choix], registre, refs, a, len(cartes)))
+        permis = not canon_cite and _essentiel_de(_movies[choix], refs) is not None
+        if permis:
+            canon_cite = True
+        cartes.append(_carte(choix, sims[choix], registre, refs, a, len(cartes), permis))
     return cartes
 
 

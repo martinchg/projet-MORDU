@@ -22,7 +22,35 @@
 
   /* --- les trois cartes --- */
   .cartes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px}
-  @media(max-width:820px){.cartes{grid-template-columns:1fr}}
+  /* MOBILE — le point critique du produit : il faut VOIR les trois directions d'un
+     coup. En pleine largeur, une carte mangeait un écran entier (2,4 écrans à
+     scroller) : comparer devenait un effort de mémoire, soit exactement la charge
+     mentale que l'oracle existe pour supprimer.
+     La logique du concept donne la solution : l'affiche est ILLISIBLE par choix, donc
+     elle ne porte aucune information — elle ne mérite pas l'espace. On la réduit à une
+     vignette, et elle ne s'agrandit qu'à la révélation, quand elle devient signifiante. */
+  @media(max-width:820px){
+    /* l'en-tête est de la pédagogie : utile une fois, du bruit ensuite. On la
+       comprime pour que les TROIS directions tiennent dans un écran. */
+    .wrap{padding:14px 14px 40px}
+    .brand{font-size:27px} h2{font-size:20px;margin:14px 0 3px}
+    .hint{font-size:12px;margin-bottom:12px;line-height:1.45}
+    .hint .long{display:none}
+    .status{font-size:10px;padding:4px 7px}
+    .cartes{grid-template-columns:1fr;gap:12px}
+    .carte{flex-direction:row;align-items:flex-start}
+    .carte .frame{width:98px;flex:0 0 98px;max-height:none;aspect-ratio:2/3}
+    /* bandeau en haut de la vignette. NE PAS fixer top ET bottom ensemble : les deux
+       résolus, l'étiquette s'étire sur toute la hauteur et masque l'affiche. */
+    .carte .reg{left:0;right:0;top:0;bottom:auto;text-align:center;
+      font-size:7px;padding:3px 2px;letter-spacing:.06em;white-space:nowrap}
+    .carte .body{padding:12px 13px}
+    .carte .arg{font-size:14px}
+    .carte .crou{display:none}          /* le fait croustillant attend la révélation */
+    .carte.revele{flex-direction:column}
+    .carte.revele .frame{width:100%;flex:0 0 auto;max-height:46vh}
+    .carte.revele .crou{display:block}
+  }
   .carte{border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;cursor:pointer;transition:border-color .16s,transform .16s}
   .carte:hover{border-color:var(--red);transform:translateY(-3px)}
   /* L'affiche ne doit JAMAIS pousser l'argument hors de l'écran : on choisit sur
@@ -201,9 +229,9 @@ function vueCartes(cartes){
     vue.innerHTML=`<div class="banner">Pas de tirage possible — catalogue trop filtré.</div>`; return;
   }
   vue.innerHTML=`<h2>Ce soir</h2>
-    <p class="hint">Trois directions. Tu ne choisis pas un film parmi des milliers —
-    tu me dis de quoi tu as <b>envie</b>. Les affiches restent tramées : choisis sur l'argument,
-    pas sur la jaquette. Le film se révèle après.</p>
+    <p class="hint">Trois directions. Tu me dis de quoi tu as <b>envie</b><span class="long">,
+    tu ne choisis pas un film parmi des milliers</span>. Les affiches restent tramées :
+    choisis sur l'argument<span class="long">, pas sur la jaquette</span>. Le film se révèle après.</p>
     <div class="cartes">${cartes.map((c,i)=>`
       <div class="carte" data-i="${i}">
         <div class="frame"><canvas></canvas><span class="reg">${c.label}</span></div>
