@@ -247,9 +247,22 @@ Fait, testé de bout en bout dans le navigateur (57 tests dans `backend/tests_or
 6. **Canon en ingrédient invisible** — un essentiel n'est cité que si la personne est
    déjà dans tes arêtes (invitation), jamais depuis une liste absolue (dette).
 
-Reste à faire : la boîte aux lettres, les portraits qui se dé-pixelisent, le Wrapped,
-le pari de l'oracle (§9), et la projection des ressentis sur les axes du Tag Genome
-(qui remplacera la valence lexicale — plancher assumé).
+7. **La boîte aux lettres** (§6) — on y dépose avec la provenance, on n'y choisit
+   jamais ; l'oracle y puise délibérément (~30 %). Un simple bonus de score ne
+   suffisait pas : un film conseillé peut être à 0.14 d'affinité sous sa bande.
+8. **Les portraits reliés aux arêtes** — `/api/vus` (graines + arêtes) alimente les
+   domaines. Les deux moitiés du produit se parlent enfin.
+9. **Le pari de l'oracle** (§9) — il prédit ce que tu vas retenir, tu le notes, il
+   tient son palmarès. La série appartient à la MACHINE : tu ne peux jamais échouer.
+10. **Le moteur visuel** (`mordu.js`) — tramage en shader WebGL (un seul contexte),
+    grain vivant, température par genre, révélation à 60 fps, fond de bruit qui dérive,
+    titres qui se résolvent depuis des glyphes. Tout se résout depuis le bruit.
+
+Reste à faire : le **Wrapped** (le portrait tiré de ce que tu écris — il lui faut des
+dizaines d'arêtes, donc du temps, pas du code), la **projection Tag Genome** (qui
+remplacera la valence lexicale), le **raffinement LLM des faits croustillants**
+(~45 % accrochent, plafond des heuristiques atteint), et le **mobile Expo**, resté
+sur ses films en dur.
 
 **Juge de paix (objection 8, la seule sans réponse verbale possible) : v0 + trois semaines
 d'usage réel par Martin. On compte les arêtes. C'est le test de l'homme qui existe.**
