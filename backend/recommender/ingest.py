@@ -174,6 +174,9 @@ def enrich(detail):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", type=int, default=1000)
+    ap.add_argument("--populaires", action="store_true",
+                    help="revenir à /movie/popular (popularité du moment) au lieu de "
+                         "/discover trié par nombre de votes")
     ap.add_argument("--force", action="store_true")
     args = ap.parse_args()
 
@@ -187,16 +190,28 @@ def main():
     print(f"→ clé OK (mode {tmdb.mode})")
 
     # Phase 1 : collecter les ids candidats (bulk, filtrés) + favoris ---------------
-    ids = []           # ordre = populaires d'abord
+    # /discover trié par NOMBRE DE VOTES plutôt que /movie/popular : « popular » est la
+    # popularité DU MOMENT (biaisée vers les sorties récentes et plafonnée à 500 pages),
+    # alors qu'on veut les films qui COMPTENT. Trié par votes, on descend les classiques
+    # d'abord — ce qui sert la reco (plancher à 1000 votes) comme le canon.
+    ids = []
     seen = set()
     page = 1
+    endpoint, params = ("/discover/movie", {"sort_by": "vote_count.desc",
+                                            "vote_count.gte": 50,
+                                            "include_adult": "false"})
+    if args.populaires:                       # ancien comportement, si on le veut
+        endpoint, params = "/movie/popular", {}
     while len(ids) < args.target and page <= 500:
-        data = tmdb.get("/movie/popular", page=page)
-        for m in data.get("results", []):
+        data = tmdb.get(endpoint, page=page, **params)
+        res = data.get("results", [])
+        if not res:
+            break
+        for m in res:
             if m["id"] not in seen and bulk_ok(m):
                 seen.add(m["id"]); ids.append(m["id"])
         if page % 10 == 0 or page == 1:
-            print(f"  ids populaires — page {page:>3} — {len(ids)} candidats")
+            print(f"  ids — page {page:>3} — {len(ids)} candidats")
         if page >= data.get("total_pages", page):
             break
         page += 1
