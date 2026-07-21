@@ -152,12 +152,26 @@ def en_attente():
     return lire_etat().get("en_attente")
 
 
-def poser_choix(film_id, titre=None, registre=None):
+def palmares():
+    """Le track record de l'ORACLE (MANIFESTE §9) — pas le tien.
+
+    C'est tout le design : la série appartient à la machine. Tu ne peux jamais être
+    en retard ni échouer ; c'est elle qui joue sa crédibilité à chaque verdict. On
+    compte les paris que TU as jugés justes en cochant après coup.
+    """
+    ars = [a for a in toutes() if a.get("pari")]
+    juges = [a for a in ars if a.get("pari_juste") is not None]
+    bons = sum(1 for a in juges if a.get("pari_juste"))
+    return {"paris": len(ars), "juges": len(juges), "bons": bons,
+            "score": round(bons / len(juges), 2) if juges else None}
+
+
+def poser_choix(film_id, titre=None, registre=None, pari=None):
     # On MET À JOUR l'état, on ne le remplace pas : écrire {"en_attente": …} tout court
     # effaçait les graines de l'onboarding (donc le profil) au premier choix.
     e = lire_etat()
     e["en_attente"] = {"film_id": int(film_id), "titre": titre,
-                       "registre": registre, "date": _now()}
+                       "registre": registre, "pari": pari, "date": _now()}
     ecrire_etat(e)
 
 

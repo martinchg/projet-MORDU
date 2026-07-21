@@ -202,6 +202,7 @@ class ChoixRequest(BaseModel):
     film_id: int
     titre: str | None = None
     registre: str | None = None
+    pari: str | None = None
 
 
 class RessentiRequest(BaseModel):
@@ -209,6 +210,8 @@ class RessentiRequest(BaseModel):
     texte: str
     titre: str | None = None
     registre: str | None = None
+    pari: str | None = None
+    pari_juste: bool | None = None
 
 
 class GrainesRequest(BaseModel):
@@ -250,7 +253,7 @@ def api_oracle(seed: int | None = None):
 def api_choix(req: ChoixRequest):
     """« Ce soir, c'est celui-là. » Arme la serrure — les non-choisis ne sont PAS
     des rejets (MANIFESTE §3 : jamais en disliked_ids)."""
-    aretes.poser_choix(req.film_id, req.titre, req.registre)
+    aretes.poser_choix(req.film_id, req.titre, req.registre, req.pari)
     return {"ok": True, "en_attente": aretes.en_attente()}
 
 
@@ -260,9 +263,11 @@ def api_ressenti(req: RessentiRequest):
     texte = (req.texte or "").strip()
     if len(texte) < 3:
         return Response(status_code=400, content=b"ressenti vide")
-    a = aretes.ajouter(req.film_id, texte, req.titre, req.registre)
+    a = aretes.ajouter(req.film_id, texte, req.titre, req.registre,
+                       extra={"pari": req.pari, "pari_juste": req.pari_juste})
     aretes.liberer()
-    return {"ok": True, "arete": a, "total": len(aretes.toutes())}
+    return {"ok": True, "arete": a, "total": len(aretes.toutes()),
+            "palmares": aretes.palmares()}
 
 
 @app.get("/api/aretes")
@@ -283,7 +288,8 @@ def api_etat():
     ars = aretes.toutes()
     return {"graines": aretes.graines(), "aretes": len(ars),
             "en_attente": aretes.en_attente(),
-            "boite": len(aretes.boite())}
+            "boite": len(aretes.boite()),
+            "palmares": aretes.palmares()}
 
 
 @app.get("/api/vus")

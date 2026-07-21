@@ -548,6 +548,51 @@ def _argument(film, refs, registre, anc=None, variante=0, canon_permis=True):
     return phrase, croustillant
 
 
+# --- Le pari de l'oracle (MANIFESTE §9) ---------------------------------------------
+# L'oracle ne se contente pas d'argumenter : il PRÉDIT ce que tu vas retenir. Ton
+# ressenti le note ensuite. Le point clé de design : la série appartient à l'ORACLE,
+# pas à toi — tu ne peux jamais être en retard ni échouer, c'est lui qui joue sa
+# crédibilité. L'anticipation d'un jeu, sans la culpabilité d'un streak.
+# Déterministe (pas de LLM) : la prédiction se déduit des motifs et du registre.
+_PARIS_MOTIF = {
+    "tueur en série": "la traque va te tenir plus que le dénouement",
+    "thriller psychologique": "tu vas douter du personnage avant de douter de l'intrigue",
+    "néo-noir": "c'est l'atmosphère qui va rester, pas l'enquête",
+    "enquête": "tu vas aimer la méthode plus que la révélation",
+    "whodunit": "tu auras deviné, et ça ne gâchera rien",
+    "vengeance": "tu vas trouver la vengeance moins satisfaisante que prévu",
+    "enlèvement": "la tension familiale va te marquer plus que l'action",
+    "camp de concentration": "tu vas ressortir silencieux",
+    "voyage dans le temps": "la mécanique va t'occuper l'esprit après coup",
+    "amour": "tu vas être plus ému que tu ne l'admettras",
+    "amitié": "c'est une scène anodine qui va rester",
+    "la mort": "ça va appuyer là où il ne faut pas",
+    "magie": "tu vas marcher malgré toi",
+    "animaux qui parlent": "tu vas être surpris que ça te touche",
+}
+_PARIS_REGISTRE = {
+    "connu": "tu vas retrouver exactement ce que tu cherchais — et t'en vouloir un peu",
+    "ecart": "le décalage va te plaire plus que le confort",
+    "pari": "tu vas résister vingt minutes, puis lâcher",
+}
+
+
+def _pari(film, registre, anc):
+    """La prédiction affichée sur la carte. Jamais un jugement : une hypothèse."""
+    if anc and anc[0] == "motif":
+        for m in (anc[1] if isinstance(anc[1], list) else [anc[1]]):
+            if m in _PARIS_MOTIF:
+                return _PARIS_MOTIF[m]
+    g = set(film.get("genres") or [])
+    if "Comedy" in g:
+        return "tu vas rire à un moment que tu ne raconteras à personne"
+    if "Horror" in g:
+        return "c'est l'attente qui va te travailler, pas la peur"
+    if (film.get("runtime") or 0) >= 150:
+        return "la longueur ne va pas te gêner autant que tu le crains"
+    return _PARIS_REGISTRE.get(registre, "tu vas en garder une image précise")
+
+
 REGISTRES = {
     "connu": {"label": "TERRAIN CONNU", "annonce": "Ce soir, je reste dans ton axe."},
     "ecart": {"label": "PAS DE CÔTÉ", "annonce": "Un écart tempéré — voisin, mais pas pareil."},
@@ -565,6 +610,7 @@ def _carte(idx, sim, registre, refs, anc=None, variante=0, canon_permis=True):
         "annonce": REGISTRES[registre]["annonce"],
         "argument": phrase,
         "croustillant": croustillant,
+        "pari": _pari(m, registre, anc),
         "affinite": round(float(sim), 4),
     }
 

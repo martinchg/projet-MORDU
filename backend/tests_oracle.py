@@ -177,6 +177,22 @@ def test_boite_aux_lettres():
               len({c["registre"] for c in cs}) == 3)
 
 
+def test_pari_de_l_oracle():
+    """MANIFESTE §9 : l'oracle PRÉDIT ce que tu vas retenir, et c'est LUI qu'on note.
+    Le point de design : la série appartient à la machine — l'utilisateur ne peut
+    jamais échouer, donc jamais culpabiliser (l'inverse d'un streak)."""
+    seeds = ids_from_titles(GRAINES)
+    for s in (1, 5, 12, 30):
+        cs = tirage(seed_ids=seeds, seed=s)
+        for c in cs:
+            check(f"chaque carte porte un pari (seed {s})",
+                  bool(c.get("pari")) and len(c["pari"]) > 12, str(c.get("pari")))
+    # le palmarès note l'ORACLE, pas l'utilisateur
+    p = aretes.palmares()
+    check("le palmarès existe et est neutre au départ",
+          set(p) >= {"paris", "juges", "bons", "score"}, str(p))
+
+
 def test_serrure_preserve_les_graines():
     """Régression : poser un choix effaçait les graines (donc tout le profil)."""
     import os
@@ -199,7 +215,8 @@ if __name__ == "__main__":
               test_argument_en_francais, test_suites_ecartees,
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
-              test_boite_aux_lettres, test_serrure_preserve_les_graines):
+              test_boite_aux_lettres, test_pari_de_l_oracle,
+              test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()
     print(f"\n{'='*46}\n  {_ok} ok · {_ko} échecs")

@@ -25,10 +25,15 @@
   .carte.revele .titre{opacity:1}
   .carte .arg{font-size:14.5px;line-height:1.45}
   .carte .crou{font-size:12px;line-height:1.45;color:var(--mut);border-left:2px solid var(--red);padding-left:9px}
+  .carte .pari{font-size:12px;line-height:1.45;color:var(--mut);font-style:italic}
+  .carte .pari b{color:var(--ink);font-style:normal}
   .carte .souffle{font-family:var(--mono);font-size:9.5px;color:var(--green);letter-spacing:.05em}
   .carte .meta{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:auto;padding-top:8px}
   .carte.efface{opacity:.12;filter:saturate(.2);pointer-events:none;transition:opacity .6s,filter .6s}
 
+  .jugement{border-left:2px solid var(--red);padding-left:12px;margin:2px 0 16px}
+  .jugement .q{font-size:13.5px;line-height:1.5;color:var(--mut)}
+  .jugement .q b{color:var(--ink)}
   .serrure{border:1px solid var(--red);background:rgba(228,19,15,.06);padding:20px;margin-top:14px}
   .res{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:11px;margin-top:14px}
   .res .f{cursor:pointer;border:1px solid transparent;transition:border-color .15s,transform .15s}
@@ -177,6 +182,7 @@ function vueCartes(cartes){
           ${c.de_la_boite?`<div class="souffle">↩ tu me l'avais déposé${typeof c.de_la_boite==="string"?" — "+c.de_la_boite:""}</div>`:``}
           <div class="titre"></div>
           <div class="arg">${c.argument}</div>
+          ${c.pari?`<div class="pari">Je parie que <b>${c.pari}</b>.</div>`:``}
           ${c.croustillant?`<div class="crou">${c.croustillant}</div>`:``}
           <div class="meta">affinité ${c.affinite.toFixed(2)}</div>
         </div>
@@ -207,7 +213,7 @@ async function choisir(el, els, cartes, i, moteur){
   const dispo=(c.providers_fr||[]).slice(0,3).join(" · ");
   el.querySelector(".meta").innerHTML=
     `${c.runtime||"?"} min · ${(c.genres||[]).join(", ")}${dispo?`<br>${dispo}`:""}`;
-  await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre});
+  await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre,pari:c.pari});
   const bloc=document.createElement("div");
   bloc.className="serrure"; bloc.style.marginTop="22px";
   bloc.innerHTML=`<h3>C'est parti</h3>
@@ -228,6 +234,13 @@ function vueSerrure(a){
     <b>Tout état honnête compte</b> : « abandonné au bout de 40 minutes » est une réponse précieuse.</p>
     <div class="serrure">
       <h3>${a.titre||""}</h3>
+      ${a.pari?`<div class="jugement">
+        <div class="q">J'avais parié que <b>${a.pari}</b>.</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost" data-j="1">Bien vu</button>
+          <button class="btn ghost" data-j="0">À côté</button>
+          <span class="compte" id="verdict"></span>
+        </div></div>`:``}
       <textarea id="txt" placeholder="ce qui m'est resté…" autofocus></textarea>
       <div class="row">
         <button class="btn" id="env">Débloquer le prochain →</button>
@@ -236,10 +249,22 @@ function vueSerrure(a){
     </div>`;
   titre(document.getElementById("h"),"Raconte");
   const txt=document.getElementById("txt"), err=document.getElementById("err");
+  // Le pari appartient à l'ORACLE : c'est LUI qu'on note, jamais toi. Tu ne peux
+  // pas échouer ici — c'est ce qui distingue ça d'un streak (MANIFESTE §9).
+  let juge=null;
+  vue.querySelectorAll("[data-j]").forEach(b=>b.addEventListener("click",()=>{
+    juge = b.dataset.j==="1";
+    vue.querySelectorAll("[data-j]").forEach(x=>x.style.borderColor="");
+    b.style.borderColor="var(--red)";
+    document.getElementById("verdict").textContent = juge?"noté pour lui":"il s'en souviendra";
+  }));
   document.getElementById("env").addEventListener("click",async()=>{
     const t=txt.value.trim();
     if(t.length<3){ err.textContent="écris au moins une phrase"; txt.focus(); return; }
-    await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,registre:a.registre});
+    const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
+      registre:a.registre,pari:a.pari,pari_juste:juge});
+    if(r.palmares&&r.palmares.score!==null)
+      setStatus(true,`l'oracle te connaît à ${Math.round(r.palmares.score*10)}/10`);
     router();
   });
 }
