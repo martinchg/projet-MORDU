@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MORDU — Mon profil</title>
+<link rel="stylesheet" href="mordu.css">
+<style>
+  .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:6px}
+  .bloc{border:1px solid var(--line);background:var(--panel);padding:16px 17px}
+  .bloc .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--mut);display:flex;align-items:center;gap:7px;margin-bottom:11px}
+  .bloc .lbl::before{content:"";width:7px;height:7px;background:var(--red);flex:0 0 7px}
+
+  /* barres : la longueur dit le poids, sans jamais afficher un score */
+  .barre{margin-bottom:8px}
+  .barre .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
+  .barre .t span:last-child{font-family:var(--mono);font-size:10px;color:var(--mut)}
+  .barre .j{height:5px;background:#191d24}
+  .barre .j i{display:block;height:100%;background:var(--red)}
+
+  .nuage{display:flex;flex-wrap:wrap;gap:7px}
+  .nuage span{border:1px solid var(--line);padding:4px 9px;font-size:12.5px;color:var(--ink)}
+  .nuage span.fort{border-color:var(--red);color:#fff}
+  .liste{font-size:13.5px;line-height:1.75}
+  .liste .n{font-family:var(--mono);font-size:10px;color:var(--mut);margin-left:6px}
+
+  .voisins{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;margin-top:4px}
+  .voisins .v canvas{width:100%;aspect-ratio:2/3;display:block;background:#0a0c10;image-rendering:pixelated;
+    border:1px solid var(--line)}
+  .voisins .v .t{font-size:10.5px;line-height:1.2;margin-top:5px;color:var(--mut)}
+  .voisins .v .a{font-family:var(--mono);font-size:9px;color:var(--red)}
+
+  .arete{border-left:2px solid var(--red);padding:2px 0 2px 13px;margin-bottom:16px}
+  .arete .h{font-family:var(--disp);text-transform:uppercase;font-size:16px;letter-spacing:.02em}
+  .arete .d{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin:2px 0 6px}
+  .arete .x{font-size:13.5px;line-height:1.6;color:var(--ink);opacity:.9}
+  .vide{color:var(--mut);font-size:13px;line-height:1.6}
+  .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1 class="brand"><a href="index.html">MORDU</a></h1>
+    <span class="status" id="status">connexion…</span>
+  </div>
+  <nav class="nav">
+    <a href="index.html">Accueil</a>
+    <a href="oracle.html">L'oracle</a>
+    <a href="profil.html" aria-current="page">Mon profil</a>
+    <a href="domaines.html">Domaines</a>
+  </nav>
+  <h2 id="h"></h2>
+  <p class="hint" id="intro"></p>
+  <div id="vue"></div>
+</div>
+
+<script src="mordu.js"></script>
+<script>
+const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+const st=document.getElementById("status"), vue=document.getElementById("vue");
+async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+MORDU.fond({opacite:.55});
+
+const imgCache={};
+function img(path){
+  if(!path) return null;
+  if(imgCache[path]) return imgCache[path];
+  const im=new Image(); im.crossOrigin="anonymous";
+  im.src=`${API}/api/img?path=${encodeURIComponent(path)}&w=342`;
+  imgCache[path]=im; return im;
+}
+const esc=s=>String(s??"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+
+function barres(items, cle, val){
+  const max=Math.max(...items.map(i=>i[val]),1);
+  return items.map(i=>`<div class="barre">
+    <div class="t"><span>${esc(i[cle])}</span><span>${typeof i[val]==="number"?i[val].toFixed?i[val].toFixed(0):i[val]:""}</span></div>
+    <div class="j"><i style="width:${Math.round(100*i[val]/max)}%"></i></div></div>`).join("");
+}
+
+(async()=>{
+  let p, ars;
+  try{
+    p=await GET("/api/profil"); ars=await GET("/api/aretes");
+    st.className="status ok"; st.textContent=`${p.films} films connus · ${p.aretes} arête${p.aretes>1?"s":""}`;
+  }catch(e){
+    st.className="status ko"; st.textContent="API hors ligne";
+    vue.innerHTML=`<div class="banner"><b>API injoignable</b>. Lance
+      <code>uvicorn main:app --reload</code> depuis <code>backend/</code>.</div>`;
+    return;
+  }
+  MORDU.resoudreTexte(document.getElementById("h"),"Ce que je sais de toi",{duree:800});
+
+  // Honnêteté d'abord : avec peu d'arêtes, on le DIT au lieu d'inventer un portrait.
+  document.getElementById("intro").innerHTML = p.fiable
+    ? `Tout ceci est <b>recalculé</b> depuis ce que tu as vu et écrit — rien n'est stocké.
+       Si tu changes d'avis en racontant un film, le portrait change avec toi.`
+    : `⚠︎ <b>Portrait encore mince</b> : ${p.aretes} ressenti${p.aretes>1?"s":""} seulement.
+       Ce que tu lis vient surtout de tes films de départ, pas encore de ce que tu écris.
+       Il faut environ <b>cinq</b> ressentis pour que ça dise vraiment quelque chose —
+       et je préfère te le dire que te fabriquer un profil qui sonne juste sans l'être.`;
+
+  const nuage = p.motifs.length
+    ? `<div class="nuage">${p.motifs.map((m,i)=>`<span class="${i<3?'fort':''}">${esc(m.nom)}</span>`).join("")}</div>`
+    : `<p class="vide">Pas encore assez de films pour dégager des motifs.</p>`;
+
+  const vocab = p.vocabulaire.length
+    ? `<div class="nuage">${p.vocabulaire.map((v,i)=>`<span class="${i<3?'fort':''}">${esc(v.mot)}</span>`).join("")}</div>
+       <p class="vide" style="margin-top:10px">Ce que tu <b>mentionnes</b> est ton goût autant que
+       ce que tu aimes : deux personnes adorent le même film pour des raisons opposées.</p>`
+    : `<p class="vide">Tu n'as encore rien écrit. C'est pourtant là que se trouve
+       ce que personne d'autre ne peut deviner de toi.</p>`;
+
+  vue.innerHTML=`
+    <div class="grille">
+      <div class="bloc"><div class="lbl">Tes motifs</div>${nuage}</div>
+      <div class="bloc"><div class="lbl">Tes genres</div>${barres(p.genres,"nom","n")}</div>
+      <div class="bloc"><div class="lbl">Les mots que tu emploies</div>${vocab}</div>
+      <div class="bloc"><div class="lbl">Signatures</div>
+        <div class="liste">
+          ${p.realisateurs.map(r=>`<div>${esc(r.nom)}<span class="n">${r.n}</span></div>`).join("")||'<span class="vide">—</span>'}
+        </div>
+        <div class="lbl" style="margin-top:14px">Visages</div>
+        <div class="liste">
+          ${p.acteurs.slice(0,4).map(a=>`<div>${esc(a.nom)}<span class="n">${a.n}</span></div>`).join("")||'<span class="vide">—</span>'}
+        </div>
+      </div>
+      <div class="bloc"><div class="lbl">Ta forme</div>
+        <div class="liste">
+          <div>Durée moyenne <span class="n">${p.duree_moyenne??"—"} min</span></div>
+          <div>Époque moyenne <span class="n">${p.annee_moyenne??"—"}</span></div>
+        </div>
+        <div class="lbl" style="margin-top:14px">L'oracle te connaît</div>
+        ${p.palmares && p.palmares.score!==null && p.palmares.score!==undefined
+          ? `<div class="jauge">${Math.round(p.palmares.score*10)}<span style="font-size:18px">/10</span></div>
+             <p class="vide">Sur ${p.palmares.juges} pari${p.palmares.juges>1?"s":""} que tu as jugé${p.palmares.juges>1?"s":""}.</p>`
+          : `<p class="vide">Aucun pari jugé pour l'instant. C'est <b>lui</b> qui est noté,
+             jamais toi — tu ne peux pas échouer ici.</p>`}
+      </div>
+      <div class="bloc"><div class="lbl">Ce vers quoi tu penches</div>
+        <p class="vide" style="margin-bottom:9px">Les films du catalogue les plus proches de
+        ton vecteur. Ce ne sont pas des recommandations — l'oracle, lui, arbitre aussi
+        l'orthogonalité et ton envie du soir.</p>
+        <div class="voisins" id="vois"></div>
+      </div>
+    </div>
+    <h2 style="margin-top:30px" id="h2a"></h2>
+    <div id="ars"></div>`;
+  MORDU.resoudreTexte(document.getElementById("h2a"),"Tes ressentis",{duree:700});
+
+  const vs=document.getElementById("vois");
+  vs.innerHTML=p.voisins.map(v=>`<div class="v"><canvas></canvas>
+    <div class="t">${esc(v.title)}</div><div class="a">${v.affinite.toFixed(2)}</div></div>`).join("");
+  vs.querySelectorAll(".v").forEach((el,i)=>{
+    const v=p.voisins[i], cv=el.querySelector("canvas"), im=img(v.poster_path);
+    const go=()=>MORDU.tramer(cv,im,{net:.45,temperature:MORDU.temperature(v),w:88,h:132,pixMin:20});
+    if(im&&!im.complete) im.addEventListener("load",go,{once:true});
+    go();
+  });
+
+  document.getElementById("ars").innerHTML = ars.length
+    ? ars.slice().reverse().map(a=>`<div class="arete">
+        <div class="h">${esc(a.titre||"—")}</div>
+        <div class="d">${(a.date||"").slice(0,10)} · ressenti ${a.valence>=0.55?"très positif":a.valence>=0.2?"positif":a.valence>=-0.2?"mitigé":"négatif"}${a.abandonne?" · abandonné":""}</div>
+        <div class="x">${esc(a.texte)}</div></div>`).join("")
+    : `<p class="vide">Aucun ressenti pour l'instant. Chaque film que tu racontes ajoute une
+       arête — et c'est la seule matière que MORDU possède et que personne d'autre n'a.</p>`;
+})();
+</script>
+</body>
+</html>

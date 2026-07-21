@@ -76,6 +76,7 @@
   <nav class="nav">
     <a href="index.html">Accueil</a>
     <a href="oracle.html" aria-current="page">L'oracle</a>
+    <a href="profil.html">Mon profil</a>
     <a href="domaines.html">Domaines</a>
   </nav>
   <div id="vue"></div>
@@ -244,8 +245,12 @@ function vueSerrure(a){
       <textarea id="txt" placeholder="ce qui m'est resté…" autofocus></textarea>
       <div class="row">
         <button class="btn" id="env">Débloquer le prochain →</button>
+        <button class="btn ghost" id="renonce">Pas encore vu</button>
         <span class="compte" id="err"></span>
       </div>
+      <p class="compte" style="margin-top:10px;max-width:60ch;line-height:1.6">
+        Pas encore vu ? Dis-le : je rends la main sans rien écrire. On ne punit que le
+        silence, pas l'attente.</p>
     </div>`;
   titre(document.getElementById("h"),"Raconte");
   const txt=document.getElementById("txt"), err=document.getElementById("err");
@@ -258,6 +263,10 @@ function vueSerrure(a){
     b.style.borderColor="var(--red)";
     document.getElementById("verdict").textContent = juge?"noté pour lui":"il s'en souviendra";
   }));
+  document.getElementById("renonce").addEventListener("click",async()=>{
+    await fetch(API+"/api/renoncer",{method:"POST"});
+    router();
+  });
   document.getElementById("env").addEventListener("click",async()=>{
     const t=txt.value.trim();
     if(t.length<3){ err.textContent="écris au moins une phrase"; txt.focus(); return; }

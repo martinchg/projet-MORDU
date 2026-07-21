@@ -193,6 +193,29 @@ def test_pari_de_l_oracle():
           set(p) >= {"paris", "juges", "bons", "score"}, str(p))
 
 
+def test_profil_visible():
+    """Un moteur qui apprend sans rien restituer est une boîte noire — et la confiance
+    est TOUT le produit. Le profil doit être calculable, et HONNÊTE sur sa minceur."""
+    from recommender.profil_vue import construire, _sans_article
+    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners"])
+    p = construire(seeds, [])
+    check("le profil se calcule", p["films"] == 3, str(p["films"]))
+    check("il avoue son manque de fiabilité sans arêtes", p["fiable"] is False)
+    check("des genres sortent", len(p["genres"]) > 0)
+    check("des voisins sortent", len(p["voisins"]) > 0)
+    check("les voisins excluent tes propres films",
+          not ({v["id"] for v in p["voisins"]} & set(seeds)))
+    # régression : lstrip() retirait des CARACTÈRES, « l'animation » -> « nimation »
+    check("« l'animation » -> « animation »", _sans_article("l'animation") == "animation")
+    check("« le thriller » -> « thriller »", _sans_article("le thriller") == "thriller")
+    # avec des arêtes, le vocabulaire de l'utilisateur apparaît
+    p2 = construire(seeds, [{"film_id": seeds[0], "valence": 0.8,
+                             "texte": "ambiguïté morale fascinante, atmosphère poisseuse"}])
+    check("le vocabulaire de tes ressentis remonte",
+          any(v["mot"].startswith("ambig") for v in p2["vocabulaire"]),
+          str([v["mot"] for v in p2["vocabulaire"][:5]]))
+
+
 def test_serrure_preserve_les_graines():
     """Régression : poser un choix effaçait les graines (donc tout le profil)."""
     import os
@@ -215,7 +238,7 @@ if __name__ == "__main__":
               test_argument_en_francais, test_suites_ecartees,
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
-              test_boite_aux_lettres, test_pari_de_l_oracle,
+              test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()

@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from recommender.recommend import recommend, _movies, _E, _votes, _blocked, _ID2IDX
 from recommender.oracle import tirage
 from recommender import aretes
+from recommender.profil_vue import construire as construire_profil
 
 app = FastAPI(title="MORDU API")
 
@@ -268,6 +269,28 @@ def api_ressenti(req: RessentiRequest):
     aretes.liberer()
     return {"ok": True, "arete": a, "total": len(aretes.toutes()),
             "palmares": aretes.palmares()}
+
+
+@app.get("/api/profil")
+def api_profil():
+    """Ce que l'oracle a compris de toi. Tout est recalculé à la volée depuis les
+    arêtes brutes — rien n'est stocké (MANIFESTE §4 : les profils sont des vues)."""
+    return construire_profil(aretes.graines(), aretes.toutes(), aretes.palmares())
+
+
+@app.post("/api/renoncer")
+def api_renoncer():
+    """« Finalement je ne l'ai pas regardé. »
+
+    La serrure bloquait TOUT tant que le film choisi n'était pas raconté : ouvrir
+    l'app après avoir choisi un film de 2h25 sans l'avoir vu menait à un cul-de-sac.
+    Or le manifeste dit qu'on ne punit que le SILENCE, pas l'attente. Renoncer est un
+    état honnête : on libère la serrure sans écrire d'arête (rien à raconter), et le
+    film redevient tirable plus tard.
+    """
+    a = aretes.en_attente()
+    aretes.liberer()
+    return {"ok": True, "libere": a}
 
 
 @app.get("/api/aretes")
