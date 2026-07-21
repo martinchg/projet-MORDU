@@ -78,6 +78,15 @@ def _load_canons():
 
 _CANON = _load_canons()
 BONUS_CANON = 0.035   # léger : le canon nuance le classement, il ne le dicte pas
+# Un film déposé dans la boîte aux lettres est un candidat PRIVILÉGIÉ — mais jamais
+# imposé : c'est l'oracle qui décide quand son heure est venue (MANIFESTE §6). Le bonus
+# est net sans être décisif ; un film de la boîte hors-sujet ce soir reste écarté.
+BONUS_BOITE = 0.10
+# Un simple bonus de score ne suffit pas : un film conseillé peut être à 0.14 d'affinité
+# sous la tête de sa bande, donc condamné à ~2 % de chance. Or « on te l'a soufflé » est
+# une raison légitime de le servir. L'oracle PUISE donc délibérément dans la boîte de
+# temps en temps — ce qui est exactement le « quand c'est le bon soir » du manifeste.
+PROBA_BOITE = 0.30
 
 # Un fait de box-office ou de planning n'est PAS croustillant : « il a rapporté
 # 100 125 643 dollars », « le studio engage un scénariste en juillet 2012 » n'accrochent
@@ -560,10 +569,13 @@ def _carte(idx, sim, registre, refs, anc=None, variante=0, canon_permis=True):
     }
 
 
-def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, seed=None):
+def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES,
+            seed=None, boite=None):
     """Rend les 3 cartes. Aucune n'est un rejet ; aucune ne revient si déjà vue.
 
     `exclure` = films déjà vus / déjà proposés / déjà racontés (arêtes).
+    `boite`   = ids déposés dans la boîte aux lettres : candidats privilégiés, jamais
+                imposés — on ne choisit pas dedans, l'oracle y puise quand c'est l'heure.
     """
     rng = random.Random(seed)
     p = profil(seed_ids, aretes)
@@ -602,6 +614,23 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
     if len(ref_sims) == 0:
         return []
 
+    ids_boite = set(boite or [])
+    # Un film qu'on t'a soufflé peut être TRÈS loin de ton goût — c'est souvent la
+    # raison même du conseil. S'il ne tombe dans aucune bande, il serait structurellement
+    # inatteignable et la boîte ne servirait à rien. On l'affecte donc à la bande la
+    # plus proche de son affinité, et on l'y injecte.
+    bornes = {r: (float(np.percentile(ref_sims, lo)), float(np.percentile(ref_sims, hi)))
+              for r, (lo, hi) in BANDES.items()}
+    boite_par_registre = {}
+    for i in range(len(_movies)):
+        if _movies[i].get("id") in ids_boite and dispo[i]:
+            meilleur, dmin = None, 1e9
+            for r, (a, b) in bornes.items():
+                d = 0.0 if a <= sims[i] <= b else min(abs(sims[i] - a), abs(sims[i] - b))
+                if d < dmin:
+                    dmin, meilleur = d, r
+            boite_par_registre.setdefault(meilleur, []).append(i)
+
     cartes, pris, sources = [], [], set()
     canon_cite = False   # l'invitation par le canon : une seule par tirage
     for registre, (plo, phi) in BANDES.items():
@@ -630,6 +659,13 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
         # mot-clé partagé n'est pas le goût. INVITATION reste garantie — le repli de
         # genre ancre toujours la carte dans une arête existante.
         tete = [int(i) for i in bande[np.argsort(-sims[bande])][: VIVIER * 2]]
+        # Les films de la BOÎTE sont injectés d'office dans la bande où ils tombent :
+        # sans ça, un film qu'on t'a soufflé mais sémantiquement loin ne remonte
+        # jamais dans le vivier — la boîte serait décorative. Le bonus de rang ne
+        # suffit pas s'il n'y a personne à qui l'appliquer.
+        for i in boite_par_registre.get(registre, []):
+            if dispo[i] and int(i) not in tete and not _est_suite(_movies[i], vus_titres):
+                tete.append(int(i))
         ancres = {i: _ancre(_movies[i], refs) for i in tete}
         # PAS de filtre sur la force de l'ancre : préférer les ancres fortes éjectait
         # Coraline (2ᵉ par affinité, ancrée seulement par le genre) au profit de
@@ -647,12 +683,41 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
             s = sims[i] + 0.02 * (float(note) - 6.5)
             if _essentiel_de(_movies[i], refs):
                 s += BONUS_CANON      # un essentiel de quelqu'un que tu connais déjà
+            if ids_boite and _movies[i].get("id") in ids_boite:
+                s += BONUS_BOITE      # on te l'a soufflé : son heure peut être venue
             return -s
 
         pool.sort(key=_rang)
         ordre = pool[: VIVIER_PAR_REGISTRE.get(registre, VIVIER)]
 
-        choix = int(rng.choice(ordre))
+        # Tirage PONDÉRÉ vers la tête, pas uniforme : être classé premier ne servait
+        # à rien (1 chance sur 14), ce qui diluait la qualité ET rendait la boîte aux
+        # lettres inopérante. La décroissance garde de la variété d'un soir à l'autre
+        # sans mettre le 14e candidat au même rang que le 1er.
+        # tirage délibéré dans la boîte, ce soir et pour ce registre
+        candidats_boite = [i for i in boite_par_registre.get(registre, [])
+                           if i in ordre or (dispo[i] and int(i) in tete)]
+        if candidats_boite and rng.random() < PROBA_BOITE:
+            choix = int(rng.choice(candidats_boite))
+            pris.append(choix)
+            dispo[choix] = False
+            a = ancres.get(choix) or _ancre(_movies[choix], refs)
+            if a:
+                sources.add(a[2].get("id"))
+            permis = not canon_cite and _essentiel_de(_movies[choix], refs) is not None
+            if permis:
+                canon_cite = True
+            cartes.append(_carte(choix, sims[choix], registre, refs, a, len(cartes), permis))
+            continue
+
+        poids = [pow(0.72, k) for k in range(len(ordre))]
+        total = sum(poids)
+        r, cum, choix = rng.random() * total, 0.0, int(ordre[0])
+        for k, i in enumerate(ordre):
+            cum += poids[k]
+            if r <= cum:
+                choix = int(i)
+                break
         pris.append(choix)
         dispo[choix] = False
         a = ancres.get(choix)

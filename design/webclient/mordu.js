@@ -336,12 +336,15 @@
           const v = n + bay;
           const i = (y * C + x) * 4;
           let c;
-          if (v > 0.70) c = [24, 32, 45];
-          else if (v > 0.58) c = [16, 21, 29];
-          else if (v > 0.46) c = [12, 15, 20];
-          else c = [10, 12, 16];
+          // Paliers remontés : à l'écran, le fond était trop enfoui pour qu'on
+          // perçoive qu'il bouge. Il doit se sentir sans jamais se disputer avec
+          // le contenu — on garde donc l'écart entre paliers, on relève le niveau.
+          if (v > 0.70) c = [42, 54, 72];
+          else if (v > 0.58) c = [28, 36, 49];
+          else if (v > 0.46) c = [19, 24, 33];
+          else c = [13, 16, 22];
           // une braise rouge, très rare : le punch de la DA, à dose homéopathique
-          if (v > 0.76 && ((x * 7 + y * 13 + ((t * 90) | 0)) % 349 === 0)) c = [116, 26, 24];
+          if (v > 0.76 && ((x * 7 + y * 13 + ((t * 90) | 0)) % 349 === 0)) c = [140, 30, 27];
           p[i] = c[0]; p[i + 1] = c[1]; p[i + 2] = c[2]; p[i + 3] = 255;
         }
       }

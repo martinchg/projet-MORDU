@@ -153,6 +153,30 @@ def test_canon_invitation_jamais_dette():
         check("aucun canon sans arête préalable", _essentiel_de(gone[0], []) is None)
 
 
+def test_boite_aux_lettres():
+    """MANIFESTE §6 : la boîte est une SOURCE que l'oracle pondère, pas une file où
+    l'on pioche. Elle doit pouvoir remonter un film TRÈS éloigné du goût — c'est
+    souvent la raison même du conseil — sans jamais s'imposer."""
+    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners"])
+    cible = ids_from_titles(["The Big Lebowski"])
+    if not cible:
+        return
+    cible = cible[0]
+    sorties = sum(1 for s in range(1, 41)
+                  if cible in [c["id"] for c in tirage(seed_ids=seeds, seed=s, boite=[cible])])
+    sans = sum(1 for s in range(1, 41)
+               if cible in [c["id"] for c in tirage(seed_ids=seeds, seed=s)])
+    check(f"la boîte fait remonter le film ({sorties}/40 contre {sans}/40 sans)",
+          sorties > sans)
+    check("elle ne l'impose jamais (pas 40/40)", sorties < 40, str(sorties))
+    # et elle ne casse pas la structure
+    for s in (2, 8):
+        cs = tirage(seed_ids=seeds, seed=s, boite=[cible])
+        check(f"toujours 3 cartes avec la boîte (seed {s})", len(cs) == 3)
+        check(f"registres distincts avec la boîte (seed {s})",
+              len({c["registre"] for c in cs}) == 3)
+
+
 def test_serrure_preserve_les_graines():
     """Régression : poser un choix effaçait les graines (donc tout le profil)."""
     import os
@@ -175,7 +199,7 @@ if __name__ == "__main__":
               test_argument_en_francais, test_suites_ecartees,
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
-              test_serrure_preserve_les_graines):
+              test_boite_aux_lettres, test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()
     print(f"\n{'='*46}\n  {_ok} ok · {_ko} échecs")

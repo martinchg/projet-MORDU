@@ -172,6 +172,31 @@ def graines():
     return lire_etat().get("graines", [])
 
 
+# --- La boîte aux lettres (MANIFESTE §6) --------------------------------------------
+# Ce n'est PAS une watchlist. Une watchlist est une file que TU consultes pour choisir
+# — retour du choix, retour de la dette, mort du principe. La boîte est une SOURCE que
+# l'oracle pondère : on y dépose, on n'y pioche jamais.
+def boite():
+    return lire_etat().get("boite", [])
+
+
+def deposer(film_id, titre=None, source=None):
+    e = lire_etat()
+    b = e.get("boite", [])
+    if not any(x["film_id"] == int(film_id) for x in b):
+        b.append({"film_id": int(film_id), "titre": titre, "source": source,
+                  "date": _now()})
+    e["boite"] = b
+    ecrire_etat(e)
+    return b[-1] if b else None
+
+
+def retirer_boite(film_id):
+    e = lire_etat()
+    e["boite"] = [x for x in e.get("boite", []) if x["film_id"] != int(film_id)]
+    ecrire_etat(e)
+
+
 def poser_graines(ids):
     e = lire_etat()
     e["graines"] = [int(i) for i in ids]

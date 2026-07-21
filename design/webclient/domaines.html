@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MORDU — Domaines</title>
+<link rel="stylesheet" href="mordu.css">
 <style>
   :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12); --red:#E4130F; --green:#3FA45A;
     --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif; --sans:-apple-system,"Helvetica Neue",Arial,sans-serif; --mono:"SF Mono",ui-monospace,Menlo,monospace; }
@@ -13,7 +14,8 @@
   .brand{font-family:var(--disp);font-size:40px;letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px 0 var(--red);margin:0}
   .status{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line)}
   .status.ok{color:var(--green);border-color:var(--green)} .status.ko{color:var(--red);border-color:var(--red)}
-  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.02em;font-size:24px;text-shadow:2px 2px 0 var(--red);margin:24px 0 4px}
+  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.03em;font-size:24px;margin:24px 0 4px;position:relative;padding-left:15px}
+  h2::before{content:"";position:absolute;left:0;top:.14em;bottom:.16em;width:4px;background:var(--red)}
   .hint{color:var(--mut);font-size:13px;margin:0 0 16px;max-width:60ch}
   .filters{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
   .filters button{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border:1px solid var(--line);color:var(--mut)}
@@ -58,6 +60,11 @@
     <h1 class="brand">MORDU</h1>
     <span class="status" id="status">connexion…</span>
   </div>
+  <nav class="nav">
+    <a href="index.html">Accueil</a>
+    <a href="oracle.html">L'oracle</a>
+    <a href="domaines.html" aria-current="page">Domaines</a>
+  </nav>
   <h2>Domaines</h2>
   <p class="hint">Chaque acteur, réalisateur ou studio est <b>pixelisé</b> — il se <b>révèle net</b> à mesure que tu vois ses films essentiels (son « canon »). Clique un domaine, coche ce que t'as vu, et regarde-le se dé-pixeliser.</p>
   <div class="filters" id="filters">
@@ -77,6 +84,13 @@ const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1
 const LS = "mordu_vus";
 let domaines = [], filter = "all";
 let watched = new Set(JSON.parse(localStorage.getItem(LS) || "[]"));
+// LE LIEN entre les deux features : les films vus via l'oracle (graines + arêtes)
+// révèlent les portraits. Jusqu'ici les domaines vivaient sur un localStorage séparé,
+// donc raconter un film ne changeait rien ici — les deux moitiés du produit
+// s'ignoraient. Le serveur fait foi, le local ne sert qu'aux coches manuelles.
+async function fusionnerVus(){
+  try{ (await GET("/api/vus")).forEach(i=>watched.add(i)); }catch(e){}
+}
 function saveWatched(){ localStorage.setItem(LS, JSON.stringify([...watched])); }
 
 const statusEl=document.getElementById("status"), gridEl=document.getElementById("grid");
@@ -163,7 +177,8 @@ MORDU.fond({opacite:.5});
 
 (async()=>{
   try{
-    const h=await GET("/api/health"); setStatus(true,`API connectée · ${h.films} films`);
+    const h=await GET("/api/health"); await fusionnerVus();
+    setStatus(true,`API connectée · ${h.films} films · ${watched.size} vus`);
     domaines=await GET("/api/domaines?min_catalogue=2");
     if(!domaines.length){ gridEl.innerHTML='<p class="empty">Aucun domaine — as-tu lancé <code>python recommender/canon.py</code> puis redémarré uvicorn ?</p>'; return; }
     renderGrid();

@@ -20,7 +20,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from recommender.recommend import recommend, _movies, _E, _votes, _blocked
+from recommender.recommend import recommend, _movies, _E, _votes, _blocked, _ID2IDX
 from recommender.oracle import tirage
 from recommender import aretes
 
@@ -233,8 +233,16 @@ def api_oracle(seed: int | None = None):
         return {"bloque": False, "cartes": [], "besoin_onboarding": True,
                 "message": "Donne-moi trois films que tu as adorés."}
 
+    ids_boite = [b["film_id"] for b in aretes.boite()]
     cartes = tirage(seed_ids=seeds, aretes=ars,
-                    exclure=list(aretes.films_racontes()), seed=seed)
+                    exclure=list(aretes.films_racontes()), seed=seed,
+                    boite=ids_boite)
+    # on signale la provenance : « c'est Théo qui te l'avait soufflé » est un moment
+    # de plaisir gratuit, et ça justifie la carte sans la transformer en dette
+    src = {b["film_id"]: b.get("source") for b in aretes.boite()}
+    for c in cartes:
+        if c["id"] in src:
+            c["de_la_boite"] = src[c["id"]] or True
     return {"bloque": False, "cartes": cartes, "arêtes": len(ars)}
 
 
@@ -274,4 +282,50 @@ def api_graines(req: GrainesRequest):
 def api_etat():
     ars = aretes.toutes()
     return {"graines": aretes.graines(), "aretes": len(ars),
-            "en_attente": aretes.en_attente()}
+            "en_attente": aretes.en_attente(),
+            "boite": len(aretes.boite())}
+
+
+@app.get("/api/vus")
+def api_vus():
+    """Les films que tu as réellement vus : graines + arêtes.
+
+    C'est ce qui relie enfin les deux features : jusqu'ici les domaines se
+    nourrissaient d'un localStorage séparé, donc raconter un film ne révélait
+    aucun portrait. Une seule source de vérité — tes arêtes.
+    """
+    return sorted(set(aretes.graines()) | aretes.films_racontes())
+
+
+# --- La boîte aux lettres (MANIFESTE §6) : PAS une watchlist ------------------------
+class BoiteRequest(BaseModel):
+    film_id: int
+    titre: str | None = None
+    source: str | None = None       # « un pote », « bande-annonce »…
+
+
+@app.get("/api/boite")
+def api_boite():
+    """On peut la VOIR, on n'y choisit jamais : c'est l'oracle qui décide quand
+    l'heure d'un film est venue (sinon on recrée la watchlist-dette)."""
+    vus = set(aretes.graines()) | aretes.films_racontes()
+    items = [b for b in aretes.boite() if b["film_id"] not in vus]
+    for b in items:
+        m = _movies[_ID2IDX[b["film_id"]]] if b["film_id"] in _ID2IDX else None
+        if m:
+            b["poster_path"] = m.get("poster_path")
+            b["genres"] = m.get("genres")
+            b["year"] = m.get("year")
+    return items
+
+
+@app.post("/api/boite")
+def api_boite_ajouter(req: BoiteRequest):
+    return {"ok": True, "item": aretes.deposer(req.film_id, req.titre, req.source),
+            "total": len(aretes.boite())}
+
+
+@app.delete("/api/boite/{film_id}")
+def api_boite_retirer(film_id: int):
+    aretes.retirer_boite(film_id)
+    return {"ok": True, "total": len(aretes.boite())}

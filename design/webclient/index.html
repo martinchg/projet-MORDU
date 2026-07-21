@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MORDU</title>
+<link rel="stylesheet" href="mordu.css">
 <style>
   :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12);
     --red:#E4130F; --green:#3FA45A;
@@ -23,7 +24,8 @@
     background:var(--panel);padding:16px 18px;margin-bottom:11px;transition:border-color .15s,transform .15s}
   a.route:hover{border-color:var(--red);transform:translateX(3px)}
   a.route .t{font-family:var(--disp);text-transform:uppercase;font-size:21px;line-height:1.05;
-    text-shadow:2px 2px 0 var(--red)}
+    display:flex;align-items:center;gap:9px}
+  a.route .t::before{content:"";width:9px;height:9px;background:var(--red);flex:0 0 9px}
   a.route .d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:7px}
   a.route .u{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:8px;opacity:.7}
   a.route.mineur .t{font-family:var(--sans);font-size:15px;text-transform:none;text-shadow:none;font-weight:600}
@@ -43,6 +45,11 @@
     tu déclares ton <b>envie du soir</b>.</p>
   <span class="status" id="status">connexion…</span>
 
+  <nav class="nav">
+    <a href="index.html" aria-current="page">Accueil</a>
+    <a href="oracle.html">L'oracle</a>
+    <a href="domaines.html">Domaines</a>
+  </nav>
   <h2>Le rituel</h2>
   <a class="route" href="oracle.html">
     <div class="t">L'oracle <span class="tag">le cœur</span></div>
