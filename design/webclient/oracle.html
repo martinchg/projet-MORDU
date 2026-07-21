@@ -299,10 +299,15 @@ async function rendreBoite(){
   try{ items=await GET("/api/boite"); }catch(e){ return; }
   boiteEl.hidden=false;
   boiteEl.innerHTML=`<h2 id="hb"></h2>
-    <p class="hint">Ce qu'on t'a soufflé. Tu ne choisis pas ici — l'oracle y puise
-    quand c'est le bon soir. ${items.length?`<b>${items.length}</b> en attente.`:`Elle est vide.`}
-    <br><span class="long">Dépose un film et oublie-le : c'est le contraire d'une watchlist,
-    qui te renvoie ta dette à chaque ouverture.</span></p>
+    <p class="hint"><b>À quoi ça sert :</b> quand un pote te conseille un film, tu le
+    déposes ici — et tu l'oublies. Il ne devient pas une tâche à faire : il rejoint
+    simplement les candidats que l'oracle peut te servir, et c'est <b>lui</b> qui choisit
+    le bon soir. ${items.length?`<b>${items.length}</b> film${items.length>1?"s":""} en attente.`:`Elle est vide pour l'instant.`}
+    <br><br><b>Pourquoi ce n'est pas une watchlist :</b> dans une watchlist, c'est toi qui
+    reviens la consulter et qui choisis dedans — donc elle s'allonge, te regarde, et
+    devient une dette. Ici il n'y a <b>ni ordre, ni bouton « regarder celui-là »</b>.
+    Tu déposes, tu oublies ; un soir il ressort dans tes trois cartes, avec la mention
+    de qui te l'avait soufflé.</p>
     <div class="row">
       <input type="text" id="qb" placeholder="déposer un film…" autocomplete="off" style="max-width:300px">
       <input type="text" id="src" placeholder="de qui ? (facultatif)" style="max-width:190px">

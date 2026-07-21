@@ -50,13 +50,16 @@ def _mots(texte):
 def empreinte(graines, aretes, largeur=24):
     """TON EMPREINTE — le vecteur profil (384D) rendu en glyphe.
 
-    Idée : ton goût EST déjà un objet mathématique unique. Plutôt que de le résumer en
-    barres, on le montre tel quel — replié en grille et quantifié sur la palette dither.
-    Déterministe : même goût, même glyphe. Il change quand tu écris.
+    Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en barres,
+    on le montre tel quel, replié en grille et quantifié sur la palette dither.
+    Déterministe : même goût, même glyphe.
 
-    Et il obéit au principe du produit : avec peu d'arêtes il est GROSSIER, il se résout
-    à mesure que tu racontes. C'est le Wrapped, mais qui existe dès le premier ressenti
-    au lieu d'attendre d'avoir assez de matière.
+    Et il obéit au principe du produit : il est GROSSIER au début et se RÉSOUT à mesure
+    que tu racontes. La résolution est portée par la TAILLE DES BLOCS, pas par le nombre
+    de couleurs — première version testée, faire varier les seuls paliers de palette ne
+    se voyait pas : le glyphe restait du bruit, en plus ou moins coloré. En agrégeant le
+    vecteur par blocs (8x5 au départ, 24x16 à terme), on voit vraiment une image passer
+    du flou au net, exactement comme les affiches.
     """
     p = profil(graines, aretes)
     if p is None:
@@ -72,13 +75,23 @@ def empreinte(graines, aretes, largeur=24):
     g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
 
     n = len(aretes or [])
-    # 0 arête -> très grossier ; ~12 arêtes -> fin. Le glyphe se résout avec toi.
     finesse = min(1.0, n / 12.0)
-    niveaux = int(3 + round(finesse * 8))          # de 3 à 11 paliers de palette
+
+    # RÉSOLUTION : on agrège par blocs. bloc 3 -> très grossier, bloc 1 -> plein détail.
+    bloc = int(round(3 - 2 * finesse))          # 3, 2, puis 1
+    bloc = max(1, bloc)
+    if bloc > 1:
+        hh, ww = hauteur // bloc, largeur // bloc
+        reduit = g[: hh * bloc, : ww * bloc].reshape(hh, bloc, ww, bloc).mean(axis=(1, 3))
+        # on ré-étale pour garder la même taille d'image, d'où les gros pixels
+        g = np.repeat(np.repeat(reduit, bloc, axis=0), bloc, axis=1)
+        g = np.pad(g, ((0, hauteur - g.shape[0]), (0, largeur - g.shape[1])), mode="edge")
+
+    niveaux = int(4 + round(finesse * 7))       # de 4 à 11 paliers
     q = np.floor(g * (niveaux - 1) + 0.5).astype(int)
 
     return {"largeur": largeur, "hauteur": hauteur, "niveaux": niveaux,
-            "finesse": round(finesse, 3), "aretes": n,
+            "bloc": bloc, "finesse": round(finesse, 3), "aretes": n,
             "cellules": [int(x) for x in q.flatten()]}
 
 
