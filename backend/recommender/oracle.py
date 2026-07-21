@@ -79,29 +79,59 @@ def _load_canons():
 _CANON = _load_canons()
 BONUS_CANON = 0.035   # léger : le canon nuance le classement, il ne le dicte pas
 
-# Un fait de box-office n'est PAS croustillant : « il a rapporté 100 125 643 dollars »
-# n'accroche personne et abîme l'organe de confiance. Mieux vaut aucun fait qu'un fait
-# plat — la carte tient déjà debout sur son argument.
+# Un fait de box-office ou de planning n'est PAS croustillant : « il a rapporté
+# 100 125 643 dollars », « le studio engage un scénariste en juillet 2012 » n'accrochent
+# personne et abîment l'organe de confiance. Mieux vaut AUCUN fait qu'un fait plat — la
+# carte tient déjà debout sur son argument.
 _HOOK_PLAT = re.compile(
-    r"box[- ]office|recettes|a rapport[ée]|dollars|entrées en france|budget de"
-    r"|grossed|million de dollars|prix du ticket", re.I)
+    r"box[- ]office|recettes|a rapport[ée]|dollars|entrées en france"
+    r"|budget|millions? \$|grossed|prix du ticket|surcoût"
+    r"|critique (?:très )?mitigée|est (?:également )?visés? par la plainte", re.I)
+
+# Le projet est en français. Un paragraphe anglais au milieu d'une carte casse la
+# lecture — l'extracteur bascule sur l'anglais quand la page FR est maigre (~19 % des
+# cas), et ces hooks-là sont justement les plus faibles.
+# On compte les marqueurs FRANÇAIS plutôt que les anglais : une vraie phrase française
+# en contient une dizaine, une phrase anglaise presque aucun. Compter l'anglais était
+# trop fragile — un titre de film (« The Mummy ») suffisait à fausser le test.
+_FRANCAIS = re.compile(
+    r"\b(?:le|la|les|un|une|des|du|de|d'|l'|est|sont|était|qui|que|dans|avec|pour|"
+    r"par|sur|au|aux|se|son|sa|ses|il|elle|ils|mais|plus|lors|alors|après|avant|"
+    r"puis|ainsi|cette|ce|cet|leur|tout|deux|entre)\b", re.I)
+
+# Seuil de publication. Mesuré sur un échantillon aléatoire : les faits qui accrochent
+# sont au-dessus de ~9,5 (It Follows 13,1 · Zodiac 11,2), les ternes en dessous
+# (Enola Holmes 5,0 · Meet Joe Black 5,6 · Tenet 8,2). On paie ça en couverture
+# (~37 % des films gardent un fait) et c'est le bon échange : deux cartes sur trois
+# sans anecdote valent mieux que trois cartes avec une anecdote plate.
+HOOK_SCORE_MIN = 10.0
+
+
+def _texte_ok(t):
+    if not t or len(t) < 45:
+        return False
+    if _HOOK_PLAT.search(t):
+        return False
+    # moins de 5 marqueurs français = ce n'est pas du français
+    return len(_FRANCAIS.findall(t)) >= 5
 
 
 def _hook_valable(h):
     """Filtre les faits ternes. Un hook faible vaut moins que pas de hook du tout."""
     if not isinstance(h, dict):
         return None
+    if float(h.get("score") or 0) < HOOK_SCORE_MIN:
+        return None
     txt = (h.get("hook") or "").strip()
-    if not txt or len(txt) < 40:
-        return None
-    if _HOOK_PLAT.search(txt):
-        # on tente un candidat de repli avant d'abandonner
-        for c in (h.get("candidates") or []):
-            t = c.get("hook") if isinstance(c, dict) else (c if isinstance(c, str) else "")
-            if t and len(t) >= 40 and not _HOOK_PLAT.search(t):
-                return t.strip()
-        return None
-    return txt
+    if _texte_ok(txt):
+        return txt
+    # on tente un candidat de repli avant d'abandonner
+    for c in (h.get("candidates") or []):
+        t = c.get("hook") if isinstance(c, dict) else (c if isinstance(c, str) else "")
+        t = (t or "").strip()
+        if _texte_ok(t):
+            return t
+    return None
 
 
 def _essentiel_de(film, refs):
