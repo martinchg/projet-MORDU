@@ -361,9 +361,16 @@ def _base_de(film):
         base = t.split(":", 1)[0].strip().lower()
         if len(base) >= 3 and base in _TITRES and base != bas:
             return base
-    for autre in _TITRES:
-        if len(autre) >= 8 and autre != bas and autre in bas:
-            return autre
+    # On génère les suites de mots CONTIGUËS du titre et on interroge la table des
+    # titres. Version précédente : on parcourait les 6000 titres du catalogue pour
+    # CHAQUE film candidat — indolore à 1022 films, quadratique à 6000 (0,9 s par
+    # tirage). Ici ~15 recherches en O(1) au lieu de 6000 sous-chaînes.
+    mots = bas.split()
+    for i in range(len(mots)):
+        for j in range(i + 2, len(mots) + 1):        # au moins 2 mots
+            frag = " ".join(mots[i:j])
+            if len(frag) >= 8 and frag != bas and frag in _TITRES:
+                return frag
     if _RE_SUITE.search(t):
         return ""          # suite certaine, base inconnue du catalogue
     return None

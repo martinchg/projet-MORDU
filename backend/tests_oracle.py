@@ -6,7 +6,13 @@ manifeste AVANT de toucher au test.
 
     python tests_oracle.py        (aucune dépendance, pas besoin de pytest)
 """
+import os
 import sys
+import tempfile
+
+# Les tests écrivent dans un état ISOLÉ : sans ça, ils touchaient les vraies arêtes de
+# l'utilisateur. On le pose AVANT d'importer aretes, qui lit la variable au chargement.
+os.environ.setdefault("MORDU_ETAT_DIR", tempfile.mkdtemp(prefix="mordu-test-"))
 
 from recommender import aretes
 from recommender.oracle import BANDES, _est_suite, profil, tirage

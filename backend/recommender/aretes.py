@@ -18,7 +18,11 @@ import re
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(HERE, "data")
+# MORDU_ETAT_DIR permet d'isoler l'état (arêtes + serrure) pour les tests et le debug.
+# Sans lui, tester revenait à écrire dans les VRAIES données de l'utilisateur : j'ai
+# manqué d'écraser un choix en cours avec un cycle « renoncer / tester / restaurer ».
+# Les données d'une personne ne sont pas un bac à sable.
+DATA_DIR = os.environ.get("MORDU_ETAT_DIR") or os.path.join(HERE, "data")
 ARETES_PATH = os.path.join(DATA_DIR, "aretes.jsonl")
 ETAT_PATH = os.path.join(DATA_DIR, "etat.json")
 
