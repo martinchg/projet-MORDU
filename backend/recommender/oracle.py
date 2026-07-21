@@ -43,6 +43,9 @@ BANDES = {
 # Plancher d'orthogonalité : deux cartes ne peuvent pas se ressembler plus que ça.
 MAX_SIM_ENTRE_CARTES = 0.55
 # Taille du vivier dans lequel on tire au sort (évite de resservir le même trio).
+# Étroit pour « connu » — on veut le meilleur match, pas le 12ᵉ ; large pour « pari »,
+# où la surprise est le but. Un vivier uniforme sortait Shelter en terrain connu.
+VIVIER_PAR_REGISTRE = {"connu": 5, "ecart": 9, "pari": 14}
 VIVIER = 12
 # Un « pari » sans lien avec ton goût n'est pas une invitation, c'est un jet de dé
 # (MANIFESTE : invitation ≠ dette). On exige donc une ancre pour TOUTE carte.
@@ -172,6 +175,17 @@ _MOTIFS_FR = {
 }
 
 
+_GENRE_FR = {
+    "Animation": "l'animation", "Comedy": "la comédie", "Drama": "le drame",
+    "Thriller": "le thriller", "Horror": "l'horreur", "Science Fiction": "la SF",
+    "Fantasy": "le fantastique", "Crime": "le film criminel", "Mystery": "le mystère",
+    "Romance": "la romance", "Adventure": "l'aventure", "Action": "l'action",
+    "Family": "le film familial", "War": "le film de guerre", "Western": "le western",
+    "History": "le film historique", "Music": "le film musical",
+    "Documentary": "le documentaire", "TV Movie": "le téléfilm",
+}
+
+
 def _motif_fr(k):
     """Motif en français si on sait le dire, sinon None (on préfère l'ignorer)."""
     return _MOTIFS_FR.get(k)
@@ -187,14 +201,27 @@ _RE_SUITE = re.compile(
     r")", re.IGNORECASE)
 
 
-def _est_suite(film):
-    """Repère les suites/volets. Proposer « Scream VI » ou « Vol. II » à quelqu'un qui
-    n'a pas vu les précédents est une faute produit — on les écarte du tirage.
+_TITRES = {(m.get("title") or "").strip().lower() for m in _movies}
 
-    NB : le test des chiffres romains est ancré en FIN de titre, sinon « X-Men » ou
-    « Le Cinquième Élément » sautent à tort.
+
+def _est_suite(film):
+    """Repère les suites/volets. Proposer « Scream VI » ou « Sicario: Day of the
+    Soldado » à quelqu'un qui n'a pas vu les précédents est une faute produit.
+
+    Deux détections :
+    1. les marqueurs explicites (chiffres romains/arabes finaux, « Part », « Vol. ») —
+       ancrés en FIN de titre, sinon « X-Men » ou « 1917 » sautent à tort ;
+    2. les suites NOMMÉES (« Sicario: Day of the Soldado ») : si le segment avant les
+       deux-points est lui-même un film du catalogue, c'est un volet ultérieur.
     """
-    return bool(_RE_SUITE.search(film.get("title") or ""))
+    t = (film.get("title") or "").strip()
+    if _RE_SUITE.search(t):
+        return True
+    if ":" in t:
+        base = t.split(":", 1)[0].strip().lower()
+        if len(base) >= 3 and base in _TITRES and base != t.lower():
+            return True
+    return False
 
 
 # --- Fabrique d'arguments -----------------------------------------------------------
@@ -234,6 +261,19 @@ def _ancre(film, refs):
         if rares:
             force = sum(_IDF[k] for k in rares[:2])
             garde(("motif", [_motif_fr(k) for k in rares[:2]], r, force))
+
+    if meilleur is None:
+        # Repli de genre : faible, mais TOUJOURS concret et toujours ancré dans une
+        # arête existante. Sans lui, un excellent match sans mot-clé rare partagé
+        # (Coraline pour un amateur de Miyazaki) serait éjecté au profit d'un moins
+        # bon qui a un motif commun — la sémantique doit primer sur le mot-clé.
+        f_g = set(film.get("genres") or [])
+        for r in refs:
+            inter = f_g & set(r.get("genres") or [])
+            if inter:
+                g = sorted(inter, key=lambda x: -len(x))[0]
+                garde(("genre", _GENRE_FR.get(g, g.lower()), r, 2.0))
+                break
     return meilleur
 
 
@@ -299,6 +339,11 @@ _MOULES = {
         "Le terrain de {t} — {v}",
         "{v} : la veine de {t}",
         "Même sillon que {t} — {v}",
+    ],
+    "genre": [
+        "Le registre de {t} — {v}",
+        "{v}, comme {t}",
+        "Toujours {v}, après {t}",
     ],
 }
 
@@ -414,20 +459,30 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
         if sans_suite:
             bande = np.array(sans_suite)
 
-        # INVITATION, PAS DETTE : on ne garde que ce qui est relié à une arête existante,
-        # et on classe par force du lien (puis par affinité) — pas par pure proximité.
-        ancres = {int(i): _ancre(_movies[i], refs) for i in bande}
-        relies = [i for i in ancres
-                  if ancres[i] and ancres[i][3] >= FORCE_ANCRE_MIN]
-        if relies and ANCRE_OBLIGATOIRE:
-            # on préfère une ancre qui pointe vers un film source PAS ENCORE cité :
-            # trois cartes qui renvoient toutes à Se7en, c'est un tirage myope.
-            neuf = [i for i in relies if ancres[i][2].get("id") not in sources]
-            pool = neuf or relies
-            pool.sort(key=lambda i: (-ancres[i][3], -sims[i]))
-            ordre = pool[:VIVIER]
-        else:
-            ordre = list(bande[np.argsort(-sims[bande])][:VIVIER])
+        # La SÉMANTIQUE décide ; l'ancre départage et fournit l'argument.
+        # Filtrer d'abord sur l'ancre éjectait Coraline (excellent match, aucun motif
+        # rare partagé) au profit de Transformers, qui avait « robot » en commun : le
+        # mot-clé partagé n'est pas le goût. INVITATION reste garantie — le repli de
+        # genre ancre toujours la carte dans une arête existante.
+        tete = [int(i) for i in bande[np.argsort(-sims[bande])][: VIVIER * 2]]
+        ancres = {i: _ancre(_movies[i], refs) for i in tete}
+        # PAS de filtre sur la force de l'ancre : préférer les ancres fortes éjectait
+        # Coraline (2ᵉ par affinité, ancrée seulement par le genre) au profit de
+        # Dungeons & Dragons (« amitié » en commun). Le repli de genre garantit que
+        # presque tout film est argumentable — la force ne sert plus qu'à départager.
+        pool = [i for i in tete if ancres[i]] or tete
+        # trois cartes qui renvoient toutes à Se7en, c'est un tirage myope
+        neuf = [i for i in pool if ancres.get(i) and ancres[i][2].get("id") not in sources]
+        pool = neuf or pool
+
+        def _rang(i):
+            # à affinité voisine, un film mieux tenu passe devant : recommander un
+            # obscur mal noté coûte de la confiance, et la confiance est tout ici.
+            note = _movies[i].get("imdb_rating") or _movies[i].get("vote_average") or 6.5
+            return -(sims[i] + 0.02 * (float(note) - 6.5))
+
+        pool.sort(key=_rang)
+        ordre = pool[: VIVIER_PAR_REGISTRE.get(registre, VIVIER)]
 
         choix = int(rng.choice(ordre))
         pris.append(choix)
