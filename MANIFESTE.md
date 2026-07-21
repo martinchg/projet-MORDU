@@ -95,10 +95,21 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
    signifiant soir après soir. (Défaut ou option : §9.)
 2. **Les portraits du canon** : réals/acteurs se dé-pixelisent à mesure que tu vois leurs
    films essentiels. Conséquence visible de ta vie de spectateur — pas un objectif chiffré.
-3. **Ton portrait (le « Wrapped »)** : tous les N films, MORDU te rend qui tu es — tiré de
-   ce que tu as ÉCRIT, pas de ce que tu as compté. Qualitatif là où Letterboxd (Year in
-   Review) est quantitatif. Sa seule raison d'exister est le portrait par le texte :
-   personne d'autre n'a cette donnée.
+3. **Ton portrait** : MORDU te rend qui tu es — tiré de ce que tu as ÉCRIT, pas de ce
+   que tu as compté. Qualitatif là où Letterboxd (Year in Review) est quantitatif.
+
+   **Deux objets distincts, et il a fallu la remarque de Martin pour le voir (21/07 :
+   « l'empreinte ne dit rien de moi ») :**
+   - **L'EMPREINTE** est une *signature* : le vecteur 384D rendu en glyphe. Unique,
+     déterministe, elle t'identifie — mais elle est MUETTE. Ce n'est pas un portrait.
+   - **LE PORTRAIT** est ce qui se *lit* : la projection des ressentis sur des axes
+     NOMMÉS (atmosphère, image, rythme, intrigue, personnages, ambiguïté morale,
+     émotion, son, construction, mise en scène). C'est le §4 appliqué — « ce que tu
+     MENTIONNES est ton axe d'attention ».
+
+   Le signal le plus fort n'est pas ce dont on parle le plus, **c'est ce dont on ne
+   parle JAMAIS** : deux personnes peuvent adorer les mêmes films sans y regarder du
+   tout la même chose. La phrase le dit explicitement.
 
 Pas de jauges, pas de badges, pas de streaks. Le rythme de l'app est indexé sur ta vraie
 vie de spectateur — l'anti-Duolingo, assumé.

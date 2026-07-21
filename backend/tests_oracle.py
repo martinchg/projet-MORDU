@@ -305,6 +305,43 @@ def test_profil_visible():
           str([v["mot"] for v in p2["vocabulaire"][:5]]))
 
 
+def test_portrait_lisible():
+    """L'empreinte est unique mais MUETTE — Martin : « elle ne dit rien de moi ».
+    Le MANIFESTE §4 promettait pourtant un portrait tiré de ce qu'on ÉCRIT :
+    « ce que tu MENTIONNES est ton axe d'attention ». Ce test verrouille la moitié
+    qui parle, et surtout le signal du SILENCE (ce dont on ne parle jamais)."""
+    from recommender.axes import _de, portrait
+
+    vide = portrait([])
+    check("sans ressenti, pas de phrase inventée", vide["phrase"] is None)
+    check("sans ressenti, aucun axe cité", not vide["cites"])
+
+    p = portrait([
+        {"texte": "les couleurs sont magnifiques et la lumiere sublime"},
+        {"texte": "une photo splendide, des decors magnifiques"},
+    ])
+    check("l'axe dominant est détecté", p["cites"][0] == "image", str(p["cites"][:2]))
+    check("la phrase nomme l'axe dominant", "l'image" in (p["phrase"] or ""))
+    check("le SILENCE est nommé (le signal le plus distinctif)",
+          "jamais" in (p["phrase"] or ""))
+    check("les axes muets sont listés", "rythme" in p["jamais"])
+
+    # deux personnes peuvent aimer les mêmes films en n'y regardant pas la même chose
+    q = portrait([{"texte": "le rythme est nerveux, un montage sec et rapide"}])
+    check("un autre vocabulaire donne un autre portrait",
+          q["cites"][0] != p["cites"][0], f"{q['cites'][:1]} vs {p['cites'][:1]}")
+
+    # français : les libellés portent leur article, il faut contracter après « de »
+    check("« le rythme » -> « du rythme »", _de("le rythme") == "du rythme")
+    check("« les personnages » -> « des personnages »",
+          _de("les personnages") == "des personnages")
+    check("« l'image » -> « de l'image »", _de("l'image") == "de l'image")
+
+    # le portrait lit le BRUT, jamais le corrigé (même règle que le vocabulaire)
+    r = portrait([{"texte": "les couleurs", "corrige": "le rythme nerveux"}])
+    check("le portrait lit le texte brut", "image" in r["cites"])
+
+
 def test_empreinte():
     """L'empreinte est le vecteur profil rendu en glyphe : elle doit être DÉTERMINISTE
     (même goût, même image), SENSIBLE (elle change quand le goût change) et se RÉSOUDRE
@@ -400,7 +437,7 @@ if __name__ == "__main__":
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
-              test_empreinte, test_carte_du_gout,
+              test_portrait_lisible, test_empreinte, test_carte_du_gout,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()

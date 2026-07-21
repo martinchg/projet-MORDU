@@ -16,6 +16,7 @@ from collections import Counter
 
 import numpy as np
 
+from .axes import portrait as _portrait
 from .oracle import _IDF, IDF_MIN, _MOTIFS_BLOQUES, _MOTIFS_FR, _GENRE_FR, profil
 from .recommend import _E, _ID2IDX, _movies
 
@@ -222,4 +223,5 @@ def construire(graines, aretes, palmares=None):
         "annee_moyenne": round(sum(annees) / len(annees)) if annees else None,
         "palmares": palmares or {},
         "empreinte": empreinte(graines, aretes),
+        "portrait": _portrait(aretes),
     }

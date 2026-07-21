@@ -72,6 +72,18 @@
   .terr .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
   .terr.mien{border-color:var(--red)}
   .terr.mien .m{color:var(--red)}
+  /* LE PORTRAIT — ce qui se LIT. L'empreinte est une signature ; ceci est le portrait. */
+  .portrait{border:1px solid var(--red);background:rgba(228,19,15,.04);padding:20px 22px;margin-bottom:16px}
+  .portrait .p{font-size:19px;line-height:1.5;color:var(--ink);max-width:60ch}
+  .portrait .p b{color:var(--red);font-weight:400}
+  .portrait .ax{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+    gap:8px;margin-top:18px}
+  .portrait .a{border-left:2px solid var(--line);padding:3px 0 3px 10px}
+  .portrait .a.on{border-left-color:var(--red)}
+  .portrait .a .n{font-size:13px}
+  .portrait .a.on .n{color:var(--ink)} .portrait .a .n{color:var(--mut)}
+  .portrait .a .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:2px}
+  .portrait .a.on .m{color:var(--red)}
   /* L'EMPREINTE : le vecteur profil (384D) rendu en glyphe */
   .emp{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
   .emp canvas{image-rendering:pixelated;border:1px solid var(--line);background:#0a0c10;
@@ -172,8 +184,9 @@ function barres(items, cle, val){
     (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
     les motifs <b>sur-représentés</b> dans chaque zone, pas les plus fréquents — « drame »
     ne dit rien, « huis clos » nomme.</p>
+    <div class="portrait apparait" id="portrait"></div>
     <div class="bloc apparait" style="margin-bottom:16px">
-      <div class="lbl">Ton empreinte</div>
+      <div class="lbl">Ton empreinte — ta signature, pas ton portrait</div>
       <div class="emp">
         <canvas id="emp" width="240" height="160"></canvas>
         <div class="txt" id="emptxt"></div>
@@ -273,6 +286,29 @@ function barres(items, cle, val){
     }
   }catch(e){}
 
+  // ---- LE PORTRAIT (ce qui se LIT) ----
+  // MANIFESTE §4 : « ce que tu MENTIONNES est ton axe d'attention ». L'empreinte est
+  // unique et déterministe mais muette ; ceci est la moitié qui parle. Le signal le
+  // plus fort n'est pas ce dont on parle le plus, c'est ce dont on ne parle JAMAIS.
+  if(p.portrait){
+    const P=p.portrait, el=document.getElementById("portrait");
+    if(!P.aretes){
+      el.innerHTML=`<div class="lbl">Ton portrait</div>
+        <div class="p" style="font-size:15px;color:var(--mut)">Tu n'as encore rien écrit.
+        Ce portrait se construit sur <b>ce que tu mentionnes</b> quand tu racontes un film —
+        pas sur les films eux-mêmes.</div>`;
+    } else {
+      el.innerHTML=`<div class="lbl">Ton portrait${P.fiable?"":" — encore fragile"}</div>
+        <div class="p">${esc(P.phrase)}</div>
+        ${P.fiable?"":`<div class="vide" style="margin-top:9px">Sur ${P.aretes} ressenti${P.aretes>1?"s":""} seulement —
+          il en faut environ quatre pour que ces axes veuillent dire quelque chose.</div>`}
+        <div class="ax">${P.axes.map(a=>`<div class="a ${a.n?'on':''}">
+          <div class="n">${esc(a.libelle)}</div>
+          <div class="m">${a.n?`${a.n} mention${a.n>1?"s":""} · ${a.mots.slice(0,3).map(esc).join(", ")}`:"jamais mentionné"}</div>
+        </div>`).join("")}</div>`;
+    }
+  }
+
   // ---- L'EMPREINTE ----
   // Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en
   // barres, on le montre tel quel — le vecteur replié en grille et quantifié sur la
@@ -292,8 +328,9 @@ function barres(items, cle, val){
     ctx.putImageData(im,0,0);
     document.getElementById("emptxt").innerHTML=
       `Ce glyphe est <b>ton vecteur de goût</b> — 384 dimensions repliées et quantifiées
-       sur la palette. Il est <b>déterministe</b> : même goût, même image ; et il change
-       dès que tu racontes un film.
+       sur la palette. Il est <b>déterministe</b> : même goût, même image. C'est une
+       <b>signature</b>, pas un portrait : il t'identifie sans rien raconter. Ce qui se
+       lit est au-dessus.
        <br><br>Il est encore <b>grossier</b> — blocs de ${E.bloc}, ${E.niveaux} paliers.
        Il se résout à mesure que tu écris, exactement comme les affiches : vers douze
        ressentis les blocs tombent à 1 et tu vois le vecteur en plein détail.
