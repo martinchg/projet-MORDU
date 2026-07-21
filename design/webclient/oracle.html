@@ -102,7 +102,7 @@ async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HT
 async function POST(p,b){ const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},
   body:JSON.stringify(b)}); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
 
-MORDU.fond({opacite:.55});
+MORDU.fond({opacite:.72});
 
 const imgCache={};
 function img(path){

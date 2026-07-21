@@ -336,15 +336,21 @@
           const v = n + bay;
           const i = (y * C + x) * 4;
           let c;
-          // Paliers remontés : à l'écran, le fond était trop enfoui pour qu'on
-          // perçoive qu'il bouge. Il doit se sentir sans jamais se disputer avec
-          // le contenu — on garde donc l'écart entre paliers, on relève le niveau.
-          if (v > 0.70) c = [42, 54, 72];
-          else if (v > 0.58) c = [28, 36, 49];
-          else if (v > 0.46) c = [19, 24, 33];
-          else c = [13, 16, 22];
+          // Seuils calés sur les QUARTILES MESURÉS de ce bruit (min -0.08, médiane
+          // 0.22, max 0.53) et non à l'intuition : mes premiers seuils étaient à 0.58
+          // et 0.70, que la fonction n'atteint JAMAIS — les deux paliers les plus
+          // clairs n'étaient donc jamais utilisés et le fond restait plat. Ici chaque
+          // palier reçoit ~25 % des cellules, donc le champ respire vraiment.
+          // Écart entre paliers RESSERRÉ après essai : à pleine amplitude le champ
+          // créait des bandes verticales qui se disputaient avec le texte. Les quatre
+          // paliers restent actifs (c'est ça qui le fait respirer), mais l'amplitude
+          // est divisée par deux — un fond doit se sentir, pas se voir.
+          if (v > 0.29) c = [40, 51, 69];
+          else if (v > 0.223) c = [31, 39, 53];
+          else if (v > 0.158) c = [23, 29, 39];
+          else c = [16, 20, 27];
           // une braise rouge, très rare : le punch de la DA, à dose homéopathique
-          if (v > 0.76 && ((x * 7 + y * 13 + ((t * 90) | 0)) % 349 === 0)) c = [140, 30, 27];
+          if (v > 0.36 && ((x * 7 + y * 13 + ((t * 90) | 0)) % 197 === 0)) c = [165, 36, 32];
           p[i] = c[0]; p[i + 1] = c[1]; p[i + 2] = c[2]; p[i + 3] = 255;
         }
       }

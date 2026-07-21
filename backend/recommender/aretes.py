@@ -49,15 +49,60 @@ _NEG = ("ennuyeux", "ennuyeuse", "ennui", "chiant", "chiante", "nul", "nulle", "
 _ABANDON = re.compile(r"\babandonn|\barrêté|\barrete|pas fini|pas terminé|coupé au bout"
                       r"|\blâché|\blache l|tenu \d+ min", re.I)
 
+# NÉGATION. « Je ne suis pas déçu » est POSITIF, et mon comptage naïf le classait
+# négatif : c'est l'échec classique de l'analyse de sentiment par lexique, et il est
+# arrivé sur un vrai ressenti. On regarde donc les quelques mots qui PRÉCÈDENT chaque
+# terme trouvé ; s'il y a une négation, on inverse sa polarité.
+_NEGATION = re.compile(r"\b(?:pas|plus|jamais|aucun|aucune|sans|ni|rien)\b", re.I)
+_PORTEE_NEGATION = 4          # en nombre de mots avant le terme
+
+
 # Frontières de mots OBLIGATOIRES : en sous-chaîne, « beau » matche « beaucoup »,
 # « fort » matche « effort », « mou » matche « mouvement ». Ces faux positifs
 # inversaient le signe de la valence — donc corrompaient le profil.
+# On tolère en revanche les accords : « belles » doit matcher « belle », sinon on rate
+# la moitié des adjectifs d'un vrai texte français.
+def _trouver(mots, t):
+    """Renvoie les positions (en mots) des termes trouvés, accords compris."""
+    jetons = re.findall(r"[\w'’àâäéèêëîïôöùûüç-]+", t.lower())
+    positions = []
+    for i, jeton in enumerate(jetons):
+        for w in mots:
+            if jeton == w or (jeton.startswith(w) and jeton[len(w):] in ("s", "e", "es")):
+                positions.append(i)
+                break
+    return jetons, positions
+
+
+def _compte_signe(t):
+    """(positifs, négatifs) en tenant compte des négations qui inversent."""
+    jetons = re.findall(r"[\w'’àâäéèêëîïôöùûüç-]+", t.lower())
+    pos = neg = 0
+    for i, jeton in enumerate(jetons):
+        signe = 0
+        for w in _POS:
+            if jeton == w or (jeton.startswith(w) and jeton[len(w):] in ("s", "e", "es")):
+                signe = 1
+                break
+        if not signe:
+            for w in _NEG:
+                if jeton == w or (jeton.startswith(w) and jeton[len(w):] in ("s", "e", "es")):
+                    signe = -1
+                    break
+        if not signe:
+            continue
+        avant = " ".join(jetons[max(0, i - _PORTEE_NEGATION):i])
+        if _NEGATION.search(avant):
+            signe = -signe            # « pas déçu » -> positif ; « pas génial » -> négatif
+        if signe > 0:
+            pos += 1
+        else:
+            neg += 1
+    return pos, neg
+
+
 def _compte(mots, t):
-    n = 0
-    for w in mots:
-        if re.search(r"(?<![\w'’])" + re.escape(w) + r"(?![\w'’])", t):
-            n += 1
-    return n
+    return len(_trouver(mots, t)[1])
 
 
 def valence(texte):
@@ -74,8 +119,7 @@ def valence(texte):
     C'est un plancher, pas une fin.
     """
     t = (texte or "").lower()
-    pos = _compte(_POS, t)
-    neg = _compte(_NEG, t)
+    pos, neg = _compte_signe(t)
     abandon = bool(_ABANDON.search(t))
 
     apriori = 0.35                   # il l'a choisi et regardé jusqu'au bout
@@ -116,7 +160,13 @@ def ajouter(film_id, texte, titre=None, registre=None, extra=None):
 
 
 def toutes():
-    """Relit toutes les arêtes (la source de vérité)."""
+    """Relit toutes les arêtes (la source de vérité).
+
+    La VALENCE est RECALCULÉE à la lecture, jamais celle figée au moment de l'écriture.
+    C'est le §4 du manifeste appliqué : le texte est la donnée brute, tout le reste est
+    une vue. Conséquence concrète : corriger le lexique corrige aussi le PASSÉ — sinon
+    un ressenti mal noté le resterait à jamais et continuerait à fausser le profil.
+    """
     if not os.path.exists(ARETES_PATH):
         return []
     out = []
@@ -126,9 +176,12 @@ def toutes():
             if not ligne:
                 continue
             try:
-                out.append(json.loads(ligne))
+                a = json.loads(ligne)
             except json.JSONDecodeError:
                 continue          # une ligne corrompue ne doit jamais tuer la lecture
+            a["valence"] = valence(a.get("texte"))
+            a["abandonne"] = bool(_ABANDON.search(a.get("texte") or ""))
+            out.append(a)
     return out
 
 

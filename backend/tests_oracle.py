@@ -125,10 +125,41 @@ def test_valence():
         ("Sympa sans plus.", 0.2, 0.5),
         # pièges de sous-chaîne : beaucoup/mouvement/effort ne sont PAS des jugements
         ("Beaucoup de mouvement, un effort de mise en scène.", 0.2, 0.5),
+        # NÉGATION — trouvé sur un vrai ressenti : « je ne suis pas déçu » est POSITIF,
+        # et le comptage naïf le classait négatif. C'est l'échec classique du lexique.
+        ("Je ne suis pas déçu.", 0.3, 1.0),
+        ("Ce n'est pas génial.", -1.0, 0.1),
+        ("Jamais ennuyeux.", 0.2, 1.0),
+        # ACCORDS : « belles » doit compter comme « belle », sinon on rate la moitié
+        # des adjectifs d'un texte français réel.
+        ("Les couleurs sont belles.", 0.3, 1.0),
     ]
     for texte, lo, hi in cas:
         v = aretes.valence(texte)
         check(f"valence {v:+.2f} ∈ [{lo};{hi}] — « {texte[:34]}… »", lo <= v <= hi)
+
+
+def test_valence_recalculee_a_la_lecture():
+    """MANIFESTE §4 : le texte est la donnée brute, la valence est une VUE. Elle doit
+    donc être recalculée à la lecture — sinon un ressenti mal noté le reste à jamais et
+    continue de fausser le profil, même après correction du lexique."""
+    import json
+    import os
+    chemin = aretes.ARETES_PATH
+    sauve = open(chemin, encoding="utf-8").read() if os.path.exists(chemin) else None
+    try:
+        with open(chemin, "w", encoding="utf-8") as f:
+            # on écrit une valence VOLONTAIREMENT fausse dans le fichier
+            f.write(json.dumps({"film_id": 1, "titre": "T", "valence": -0.99,
+                                "texte": "Magnifique, sublime, bouleversé."}) + "\n")
+        lu = aretes.toutes()[0]
+        check(f"la valence est recalculée ({lu['valence']:+.2f}, pas -0.99)",
+              lu["valence"] > 0.3, str(lu["valence"]))
+    finally:
+        if sauve is not None:
+            open(chemin, "w", encoding="utf-8").write(sauve)
+        elif os.path.exists(chemin):
+            os.remove(chemin)
 
 
 def test_profil_pondere_par_valence():
@@ -299,6 +330,7 @@ if __name__ == "__main__":
     for f in (test_trois_axes_orthogonaux, test_argument_toujours_ancre,
               test_argument_en_francais, test_suites_ecartees,
               test_jamais_les_graines_ni_les_racontes, test_valence,
+              test_valence_recalculee_a_la_lecture,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
               test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible,
               test_empreinte, test_carte_du_gout,
