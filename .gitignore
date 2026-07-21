@@ -40,3 +40,5 @@ _standalone.html
 .claude/worktrees/
 .claude/launch.json
 .claude/settings.local.json
+_carte.npz
+_carte_pacmap.npy

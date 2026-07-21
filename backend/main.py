@@ -24,6 +24,7 @@ from recommender.recommend import recommend, _movies, _E, _votes, _blocked, _ID2
 from recommender.oracle import tirage
 from recommender import aretes
 from recommender.profil_vue import construire as construire_profil
+from recommender.carte import carte as construire_carte
 
 app = FastAPI(title="MORDU API")
 
@@ -276,6 +277,12 @@ def api_profil():
     """Ce que l'oracle a compris de toi. Tout est recalculé à la volée depuis les
     arêtes brutes — rien n'est stocké (MANIFESTE §4 : les profils sont des vues)."""
     return construire_profil(aretes.graines(), aretes.toutes(), aretes.palmares())
+
+
+@app.get("/api/carte")
+def api_carte():
+    """La carte du goût : PaCMAP 2D du catalogue + territoires nommés + ta position."""
+    return construire_carte(aretes.graines(), aretes.toutes())
 
 
 @app.post("/api/renoncer")

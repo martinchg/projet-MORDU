@@ -3,3 +3,5 @@ uvicorn
 requests
 sentence-transformers
 numpy
+pacmap
+scikit-learn

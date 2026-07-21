@@ -216,6 +216,39 @@ def test_profil_visible():
           str([v["mot"] for v in p2["vocabulaire"][:5]]))
 
 
+def test_carte_du_gout():
+    """La carte doit être HONNÊTE : si la projection déforme trop, elle ment sur ce que
+    le moteur fait. On vérifie qu'elle conserve mieux le voisinage qu'une ACP."""
+    import numpy as np
+    from recommender.carte import carte, _N
+    from recommender.recommend import _E
+
+    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners"])
+    c = carte(seeds, [])
+    check("tous les films sont sur la carte", c["films"] == len(_movies))
+    check("des territoires sont nommés", c["clusters"] >= 5, str(c["clusters"]))
+    check("les noms ne sont pas vides",
+          all(t["nom"] and t["nom"] != "—" for t in c["territoires"]))
+    check("un centre de gravité existe", c["centre"] is not None)
+    tiens = [p for p in c["points"] if p["k"] == 2]
+    check("tes films sont marqués", len(tiens) == 3, str(len(tiens)))
+    check("les coordonnées sont bornées [0,1]",
+          all(0 <= p["x"] <= 1 and 0 <= p["y"] <= 1 for p in c["points"]))
+
+    # la raison d'être du changement : PaCMAP doit battre l'ACP sur le voisinage
+    from sklearn.neighbors import NearestNeighbors
+    k = 10
+    ihi = NearestNeighbors(n_neighbors=k + 1).fit(_E).kneighbors(_E)[1]
+    ilo = NearestNeighbors(n_neighbors=k + 1).fit(_N).kneighbors(_N)[1]
+    garde = np.mean([len(set(ihi[i, 1:]) & set(ilo[i, 1:])) / k for i in range(len(_E))])
+    Xc = _E - _E.mean(0)
+    Pacp = Xc @ np.linalg.svd(Xc, full_matrices=False)[2][:2].T
+    iacp = NearestNeighbors(n_neighbors=k + 1).fit(Pacp).kneighbors(Pacp)[1]
+    gacp = np.mean([len(set(ihi[i, 1:]) & set(iacp[i, 1:])) / k for i in range(len(_E))])
+    check(f"PaCMAP ({garde:.1%}) conserve mieux le voisinage que l'ACP ({gacp:.1%})",
+          garde > gacp * 1.5)
+
+
 def test_serrure_preserve_les_graines():
     """Régression : poser un choix effaçait les graines (donc tout le profil)."""
     import os
@@ -239,7 +272,7 @@ if __name__ == "__main__":
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
               test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible,
-              test_serrure_preserve_les_graines):
+              test_carte_du_gout, test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()
     print(f"\n{'='*46}\n  {_ok} ok · {_ko} échecs")

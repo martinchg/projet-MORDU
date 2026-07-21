@@ -36,6 +36,25 @@
   .arete .d{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin:2px 0 6px}
   .arete .x{font-size:13.5px;line-height:1.6;color:var(--ink);opacity:.9}
   .vide{color:var(--mut);font-size:13px;line-height:1.6}
+  /* LA CARTE : plein cadre, tramée comme le reste — pas un scatter plot générique */
+  .carte{position:relative;border:1px solid var(--line);background:#07080A;margin-top:8px;
+    overflow:hidden}
+  .carte canvas{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair}
+  .carte .lg{position:absolute;left:0;right:0;bottom:0;padding:8px 11px;
+    background:linear-gradient(transparent,rgba(7,8,10,.92) 55%);
+    font-family:var(--mono);font-size:9.5px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
+  .carte .lg b{color:var(--ink);font-weight:400}
+  .carte .lg i{display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:-1px}
+  .carte .tip{position:absolute;pointer-events:none;background:#0b0b0b;border:1px solid var(--red);
+    padding:4px 8px;font-size:11.5px;white-space:nowrap;transform:translate(-50%,-160%);opacity:0;
+    transition:opacity .12s}
+  .carte .tip.on{opacity:1}
+  .terrs{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px;margin-top:12px}
+  .terr{border:1px solid var(--line);padding:9px 11px;background:var(--panel)}
+  .terr .n{font-size:12.5px;line-height:1.3}
+  .terr .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
+  .terr.mien{border-color:var(--red)}
+  .terr.mien .m{color:var(--red)}
   .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
 </style>
 </head>
@@ -114,6 +133,24 @@ function barres(items, cle, val){
        ce que personne d'autre ne peut deviner de toi.</p>`;
 
   vue.innerHTML=`
+    <h2 id="hc" style="margin-top:4px"></h2>
+    <p class="hint">Les 1022 films projetés depuis <b>384 dimensions</b> vers un plan
+    (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
+    les motifs <b>sur-représentés</b> dans chaque zone, pas les plus fréquents — « drame »
+    ne dit rien, « huis clos » nomme.</p>
+    <div class="carte">
+      <canvas id="cv" width="1180" height="620"></canvas>
+      <div class="tip" id="tip"></div>
+      <div class="lg">
+        <span><i style="background:#E4130F"></i><b>tes films</b></span>
+        <span><i style="background:#D0B278"></i>proches de toi</span>
+        <span><i style="background:#34465C"></i>le reste du territoire</span>
+        <span><i style="background:#3FA45A"></i>ton centre de gravité</span>
+      </div>
+    </div>
+    <div class="terrs" id="terrs"></div>
+
+    <h2 style="margin-top:30px" id="hd"></h2>
     <div class="grille">
       <div class="bloc"><div class="lbl">Tes motifs</div>${nuage}</div>
       <div class="bloc"><div class="lbl">Tes genres</div>${barres(p.genres,"nom","n")}</div>
@@ -149,6 +186,108 @@ function barres(items, cle, val){
     <h2 style="margin-top:30px" id="h2a"></h2>
     <div id="ars"></div>`;
   MORDU.resoudreTexte(document.getElementById("h2a"),"Tes ressentis",{duree:700});
+
+  // ---- LA CARTE ----
+  MORDU.resoudreTexte(document.getElementById("hc"),"La carte de ton goût",{duree:800});
+  MORDU.resoudreTexte(document.getElementById("hd"),"Le détail",{duree:700,retard:200});
+  let C=null;
+  try{ C=await GET("/api/carte"); }catch(e){}
+  if(C){
+    const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+    const W=cv.width, H=cv.height, PAD=54, CELL=5;
+    const px=p=>PAD+p.x*(W-2*PAD), py=p=>PAD+(1-p.y)*(H-2*PAD);
+    // aligner sur une grille : c'est ce qui donne la matière « tramée » plutôt qu'un
+    // nuage de ronds lisses — la carte appartient au même monde que les affiches
+    const snap=v=>Math.round(v/CELL)*CELL;
+
+    function dessiner(surbrillance){
+      ctx.fillStyle="#07080A"; ctx.fillRect(0,0,W,H);
+      // 1. le territoire, en fond : une nappe de densité tramée
+      const occ=new Map();
+      C.points.forEach(p=>{
+        const x=snap(px(p)), y=snap(py(p)), c=`${x},${y}`;
+        occ.set(c,(occ.get(c)||0)+1);
+      });
+      occ.forEach((n,c)=>{
+        const [x,y]=c.split(",").map(Number);
+        const t=Math.min(1,n/3);
+        ctx.fillStyle=t>.66?"#2C3A4E":t>.33?"#222D3C":"#18202B";
+        ctx.fillRect(x,y,CELL-1,CELL-1);
+      });
+      // 2. les proches, puis les tiens : l'ordre compte, tes films au-dessus de tout
+      C.points.filter(p=>p.k===1).forEach(p=>{
+        ctx.fillStyle="#D0B278"; ctx.fillRect(snap(px(p)),snap(py(p)),CELL-1,CELL-1); });
+      C.points.filter(p=>p.k===2).forEach(p=>{
+        const x=snap(px(p)),y=snap(py(p));
+        ctx.fillStyle="#E4130F"; ctx.fillRect(x-CELL,y-CELL,CELL*3-1,CELL*3-1);
+        ctx.fillStyle="#F5EFE3"; ctx.fillRect(x,y,CELL-1,CELL-1);
+      });
+      // 3. ton centre de gravité : une croix, pas un rond — ça se repère
+      if(C.centre){
+        const x=snap(PAD+C.centre[0]*(W-2*PAD)), y=snap(PAD+(1-C.centre[1])*(H-2*PAD));
+        ctx.fillStyle="#3FA45A";
+        ctx.fillRect(x-CELL*4,y,CELL*9,CELL-1); ctx.fillRect(x,y-CELL*4,CELL-1,CELL*9);
+      }
+      // 4. les noms de territoires : lisibles, donc jamais tramés.
+      //    Ils s'ÉVITENT (une étiquette qui en recouvre une autre les tue toutes les
+      //    deux) et restent dans le cadre — au bord, la carte tronquait les noms.
+      ctx.textAlign="center";
+      const poses=[];
+      const ordre=[...C.territoires].sort((a,b)=>
+        (b.tiens>0)-(a.tiens>0) || b.n-a.n);            // les tiens et les gros d'abord
+      ordre.forEach(t=>{
+        const mien=t.tiens>0, sur=surbrillance===t.id;
+        ctx.font=`${mien?"600 ":""}12px ui-monospace,SF Mono,Menlo,monospace`;
+        const txt=t.nom.length>34?t.nom.slice(0,33)+"…":t.nom;
+        const w=ctx.measureText(txt).width, h=17;
+        let x=PAD+t.x*(W-2*PAD), y=PAD+(1-t.y)*(H-2*PAD);
+        x=Math.min(Math.max(x,w/2+8), W-w/2-8);          // jamais hors cadre
+        y=Math.min(Math.max(y,h+4), H-26);
+        // on décale verticalement tant que ça chevauche un nom déjà posé
+        let dec=0, ok=false;
+        for(let essai=0; essai<9 && !ok; essai++){
+          dec = essai===0?0:(essai%2?1:-1)*Math.ceil(essai/2)*19;
+          const yy=y+dec;
+          ok = yy>h && yy<H-22 && !poses.some(r=>
+            Math.abs(r.x-x)<(r.w+w)/2+8 && Math.abs(r.y-yy)<h+3);
+        }
+        if(!ok && !mien) return;                          // on préfère cacher que superposer
+        y+=dec;
+        poses.push({x,y,w});
+        ctx.fillStyle="rgba(7,8,10,.86)"; ctx.fillRect(x-w/2-5,y-13,w+10,h);
+        ctx.fillStyle=sur?"#fff":(mien?"#E4130F":"#8E8E86");
+        ctx.fillText(txt,x,y);
+      });
+    }
+    dessiner(null);
+
+    // survol : retrouver le film le plus proche du curseur
+    const tip=document.getElementById("tip");
+    cv.addEventListener("mousemove",e=>{
+      const r=cv.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+      const mx=(e.clientX-r.left)*sx, my=(e.clientY-r.top)*sy;
+      let best=null,bd=1e9;
+      for(const p of C.points){
+        const d=(px(p)-mx)**2+(py(p)-my)**2;
+        if(d<bd){bd=d;best=p;}
+      }
+      if(best && bd<900){
+        tip.textContent=best.t; tip.classList.add("on");
+        tip.style.left=((px(best)/sx))+"px"; tip.style.top=((py(best)/sy))+"px";
+      } else tip.classList.remove("on");
+    });
+    cv.addEventListener("mouseleave",()=>tip.classList.remove("on"));
+
+    document.getElementById("terrs").innerHTML=C.territoires.map(t=>
+      `<div class="terr ${t.tiens?'mien':''}" data-id="${t.id}">
+        <div class="n">${esc(t.nom)}</div>
+        <div class="m">${t.n} films${t.tiens?` · ${t.tiens} à toi`:""}${t.affinite!==undefined?` · affinité ${t.affinite.toFixed(2)}`:""}</div>
+      </div>`).join("");
+    document.querySelectorAll(".terr").forEach(el=>{
+      el.addEventListener("mouseenter",()=>dessiner(+el.dataset.id));
+      el.addEventListener("mouseleave",()=>dessiner(null));
+    });
+  }
 
   const vs=document.getElementById("vois");
   vs.innerHTML=p.voisins.map(v=>`<div class="v"><canvas></canvas>
