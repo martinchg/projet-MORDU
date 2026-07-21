@@ -212,6 +212,14 @@ d'où : la serrure ressenti est le cœur, c'est elle qui fabrique la donnée uni
   l'oracle ? Les deux ?
 - N du Wrapped (tous les combien de films ?).
 - Le ressenti vocal (dicter au lieu d'écrire) — baisse la friction de la serrure.
+- **Le pari de l'oracle** (proposé, JAMAIS validé — à trancher). L'oracle ne se contente
+  pas d'argumenter : il PRÉDIT ton ressenti (« je parie que la tension te tiendra plus que
+  le dénouement »). Ton ressenti le note, et il affiche son track record (« il te connaît
+  à 7/10 »). Intérêt : la série appartient à l'ORACLE, pas à toi — tu ne peux jamais être
+  en retard ni échouer, c'est lui qui joue sa crédibilité. Ça donnerait l'anticipation
+  d'un jeu sans la culpabilité d'un streak, et ça transformerait la serrure (corriger sa
+  copie) en moment savoureux plutôt qu'en péage. Risque : une prédiction ratée trop
+  souvent abîme le personnage.
 - Cold start (le trou reconnu) : l'onboarding-arêtes (« cite 3 films adorés + une ligne
   sur pourquoi » = 3 arêtes riches jour 1) suffit-il ? L'import CSV Letterboxd est jugé
   non viable par Martin (friction). À valider en vrai.
