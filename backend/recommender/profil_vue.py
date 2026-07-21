@@ -116,6 +116,9 @@ def construire(graines, aretes, palmares=None):
     # ce que TU écris : ton axe d'attention (§4 — « ce que tu mentionnes est ton goût »)
     vocab = Counter()
     for a in aretes or []:
+        # TOUJOURS le texte brut, jamais le corrigé : si un LLM réécrit tes phrases,
+        # ce nuage afficherait SON vocabulaire et plus le tien. C'est précisément ce
+        # que ce bloc est censé montrer.
         for m in _mots(a.get("texte")):
             vocab[m] += 1
 

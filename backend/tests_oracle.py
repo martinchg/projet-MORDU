@@ -230,6 +230,28 @@ def test_pari_de_l_oracle():
           set(p) >= {"paris", "juges", "bons", "score"}, str(p))
 
 
+def test_relecture_ne_vole_pas_la_voix():
+    """LE point critique du module : la page profil affiche « les mots que tu emploies ».
+    Si la correction d'un LLM remplaçait le brut, ce nuage montrerait le vocabulaire du
+    MODÈLE. Le brut doit donc rester la source du vocabulaire, et la correction ne
+    servir qu'à la valence et à la lecture."""
+    from recommender.profil_vue import construire
+    from recommender import relecture
+    seeds = ids_from_titles(["Se7en"])
+    brut = "chef doeuvre absolu, la mise en scene est hypnotique"
+    corr = "Chef-d'œuvre absolu, la mise en scène est hypnotique."
+    p = construire(seeds, [{"film_id": seeds[0], "texte": brut, "corrige": corr,
+                            "valence": 0.8}])
+    mots = {v["mot"] for v in p["vocabulaire"]}
+    check("le vocabulaire vient du texte BRUT", "doeuvre" in mots or "mise" in mots,
+          str(sorted(mots)[:6]))
+    # sans clé, tout dégrade proprement au lieu de casser
+    if not relecture.disponible():
+        check("sans clé API, relire() renvoie None sans lever",
+              relecture.relire("un texte") is None)
+    check("texte vide -> None", relecture.relire("") is None)
+
+
 def test_profil_visible():
     """Un moteur qui apprend sans rien restituer est une boîte noire — et la confiance
     est TOUT le produit. Le profil doit être calculable, et HONNÊTE sur sa minceur."""
@@ -332,7 +354,7 @@ if __name__ == "__main__":
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_valence_recalculee_a_la_lecture,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
-              test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible,
+              test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible, test_relecture_ne_vole_pas_la_voix,
               test_empreinte, test_carte_du_gout,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")

@@ -36,6 +36,13 @@
   .carte .meta{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:auto;padding-top:8px}
   .carte.efface{opacity:.12;filter:saturate(.2);pointer-events:none;transition:opacity .6s,filter .6s}
 
+  /* relecture : on PROPOSE, on n'impose pas — le brut reste toujours ta version */
+  .relu{border-left:2px solid var(--green);padding:9px 0 9px 12px;margin-top:12px;display:none}
+  .relu.on{display:block}
+  .relu .t{font-size:13.5px;line-height:1.55}
+  .relu .chg{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:7px;line-height:1.6}
+  .relu .chg b{color:var(--green);font-weight:400}
+  .relu .chg s{color:var(--red);text-decoration:line-through;opacity:.75}
   .jugement{border-left:2px solid var(--red);padding-left:12px;margin:2px 0 16px}
   .jugement .q{font-size:13.5px;line-height:1.5;color:var(--mut)}
   .jugement .q b{color:var(--ink)}
@@ -112,6 +119,7 @@ function img(path){
   im.src=`${API}/api/img?path=${encodeURIComponent(path)}&w=342`;
   imgCache[path]=im; return im;
 }
+const esc=s=>String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 function titre(el,txt,retard){ MORDU.resoudreTexte(el,txt,{duree:750,retard:retard||0}); }
 
 let vivants=[];                     // boucles de rendu à couper au changement de vue
@@ -253,8 +261,10 @@ function vueSerrure(a){
           <span class="compte" id="verdict"></span>
         </div></div>`:``}
       <textarea id="txt" placeholder="ce qui m'est resté…" autofocus></textarea>
+      <div class="relu" id="relu"></div>
       <div class="row">
         <button class="btn" id="env">Débloquer le prochain →</button>
+        <button class="btn ghost" id="relire" hidden>Relire mes fautes</button>
         <button class="btn ghost" id="renonce">Pas encore vu</button>
         <span class="compte" id="err"></span>
       </div>
@@ -273,6 +283,32 @@ function vueSerrure(a){
     b.style.borderColor="var(--red)";
     document.getElementById("verdict").textContent = juge?"noté pour lui":"il s'en souviendra";
   }));
+  // RELECTURE — orthographe et phrases cassées uniquement. Le texte brut n'est jamais
+  // remplacé : la correction part dans un champ à part, et ton vocabulaire (dans le
+  // profil) continue de se lire sur le brut. Sinon le portrait afficherait les mots du
+  // modèle à la place des tiens.
+  let corrige=null;
+  const bRelire=document.getElementById("relire"), relu=document.getElementById("relu");
+  GET("/api/relecture_dispo").then(d=>{ if(d.disponible) bRelire.hidden=false; }).catch(()=>{});
+  bRelire.addEventListener("click",async()=>{
+    const t=txt.value.trim();
+    if(t.length<3){ err.textContent="écris d'abord"; return; }
+    bRelire.textContent="Relecture…";
+    try{
+      const r=await POST("/api/relire",{film_id:a.film_id,texte:t});
+      if(!r.ok){ err.textContent=r.raison||"rien à corriger"; bRelire.textContent="Relire mes fautes"; return; }
+      corrige=r.corrige;
+      relu.className="relu on";
+      relu.innerHTML=`<div class="t">${esc(r.corrige)}</div>
+        ${r.changements.length?`<div class="chg">${r.changements.map(c=>
+          `<s>${esc(c.avant)}</s> → <b>${esc(c.apres)}</b> <span style="opacity:.6">(${esc(c.type)})</span>`
+        ).join("<br>")}</div>`:`<div class="chg">Aucune faute trouvée.</div>`}
+        <div class="chg" style="opacity:.8">Ta version d'origine est conservée telle quelle —
+        c'est elle qui alimente « les mots que tu emploies » dans ton profil.</div>`;
+    }catch(e){ err.textContent="relecture indisponible"; }
+    bRelire.textContent="Relire mes fautes";
+  });
+
   document.getElementById("renonce").addEventListener("click",async()=>{
     await fetch(API+"/api/renoncer",{method:"POST"});
     router();
@@ -281,7 +317,7 @@ function vueSerrure(a){
     const t=txt.value.trim();
     if(t.length<3){ err.textContent="écris au moins une phrase"; txt.focus(); return; }
     const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
-      registre:a.registre,pari:a.pari,pari_juste:juge});
+      registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige});
     if(r.palmares&&r.palmares.score!==null)
       setStatus(true,`l'oracle te connaît à ${Math.round(r.palmares.score*10)}/10`);
     router();

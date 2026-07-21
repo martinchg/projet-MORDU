@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from recommender.recommend import recommend, _movies, _E, _votes, _blocked, _ID2IDX
 from recommender.oracle import tirage
 from recommender import aretes
+from recommender import relecture
 from recommender.profil_vue import construire as construire_profil
 from recommender.carte import carte as construire_carte
 
@@ -214,6 +215,7 @@ class RessentiRequest(BaseModel):
     registre: str | None = None
     pari: str | None = None
     pari_juste: bool | None = None
+    corrige: str | None = None
 
 
 class GrainesRequest(BaseModel):
@@ -265,11 +267,34 @@ def api_ressenti(req: RessentiRequest):
     texte = (req.texte or "").strip()
     if len(texte) < 3:
         return Response(status_code=400, content=b"ressenti vide")
-    a = aretes.ajouter(req.film_id, texte, req.titre, req.registre,
-                       extra={"pari": req.pari, "pari_juste": req.pari_juste})
+    extra = {"pari": req.pari, "pari_juste": req.pari_juste}
+    if req.corrige and req.corrige.strip() and req.corrige.strip() != texte:
+        extra["corrige"] = req.corrige.strip()   # vue, à côté du brut — jamais à la place
+    a = aretes.ajouter(req.film_id, texte, req.titre, req.registre, extra=extra)
     aretes.liberer()
     return {"ok": True, "arete": a, "total": len(aretes.toutes()),
             "palmares": aretes.palmares()}
+
+
+@app.post("/api/relire")
+def api_relire(req: RessentiRequest):
+    """Relecture d'un ressenti : orthographe et phrases cassées, RIEN d'autre.
+
+    Le texte brut n'est jamais remplacé — la correction est une vue stockée à côté
+    (MANIFESTE §4). Le vocabulaire du profil continue de lire le brut, sinon on
+    afficherait le vocabulaire du modèle à la place de celui de l'utilisateur.
+    """
+    if not relecture.disponible():
+        return {"ok": False, "raison": "pas de clé ANTHROPIC_API_KEY configurée"}
+    r = relecture.relire(req.texte)
+    if not r:
+        return {"ok": False, "raison": "aucune correction proposée"}
+    return {"ok": True, **r}
+
+
+@app.get("/api/relecture_dispo")
+def api_relecture_dispo():
+    return {"disponible": relecture.disponible(), "modele": relecture.MODELE}
 
 
 @app.get("/api/profil")

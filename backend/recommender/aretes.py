@@ -179,8 +179,13 @@ def toutes():
                 a = json.loads(ligne)
             except json.JSONDecodeError:
                 continue          # une ligne corrompue ne doit jamais tuer la lecture
-            a["valence"] = valence(a.get("texte"))
-            a["abandonne"] = bool(_ABANDON.search(a.get("texte") or ""))
+            # La VALENCE se calcule sur le texte CORRIGÉ s'il existe : le lexique
+            # reconnaît mal « génail ». Le texte BRUT, lui, reste intact — c'est lui
+            # qui alimente « les mots que tu emploies » dans le profil, parce que ton
+            # vocabulaire est la donnée qu'aucun modèle ne doit réécrire.
+            base = a.get("corrige") or a.get("texte")
+            a["valence"] = valence(base)
+            a["abandonne"] = bool(_ABANDON.search(base or ""))
             out.append(a)
     return out
 
