@@ -13,6 +13,8 @@ d'inventer un portrait. Pas de faux profilage.
 import re
 from collections import Counter
 
+import numpy as np
+
 from .oracle import _IDF, IDF_MIN, _MOTIFS_BLOQUES, _MOTIFS_FR, _GENRE_FR, profil
 from .recommend import _E, _ID2IDX, _movies
 
@@ -43,6 +45,41 @@ def _sans_article(s):
 def _mots(texte):
     t = re.sub(r"[^\wàâäéèêëîïôöùûüç' ]", " ", (texte or "").lower())
     return [m for m in t.split() if len(m) >= 4 and m not in _VIDES]
+
+
+def empreinte(graines, aretes, largeur=24):
+    """TON EMPREINTE — le vecteur profil (384D) rendu en glyphe.
+
+    Idée : ton goût EST déjà un objet mathématique unique. Plutôt que de le résumer en
+    barres, on le montre tel quel — replié en grille et quantifié sur la palette dither.
+    Déterministe : même goût, même glyphe. Il change quand tu écris.
+
+    Et il obéit au principe du produit : avec peu d'arêtes il est GROSSIER, il se résout
+    à mesure que tu racontes. C'est le Wrapped, mais qui existe dès le premier ressenti
+    au lieu d'attendre d'avoir assez de matière.
+    """
+    p = profil(graines, aretes)
+    if p is None:
+        return None
+    v = np.asarray(p, dtype=float)
+    hauteur = int(np.ceil(len(v) / largeur))
+    pad = np.zeros(hauteur * largeur)
+    pad[: len(v)] = v
+    g = pad.reshape(hauteur, largeur)
+
+    # normalisation robuste : les extrêmes d'un embedding écraseraient tout le reste
+    lo, hi = np.percentile(g, 3), np.percentile(g, 97)
+    g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
+
+    n = len(aretes or [])
+    # 0 arête -> très grossier ; ~12 arêtes -> fin. Le glyphe se résout avec toi.
+    finesse = min(1.0, n / 12.0)
+    niveaux = int(3 + round(finesse * 8))          # de 3 à 11 paliers de palette
+    q = np.floor(g * (niveaux - 1) + 0.5).astype(int)
+
+    return {"largeur": largeur, "hauteur": hauteur, "niveaux": niveaux,
+            "finesse": round(finesse, 3), "aretes": n,
+            "cellules": [int(x) for x in q.flatten()]}
 
 
 def construire(graines, aretes, palmares=None):
@@ -110,4 +147,5 @@ def construire(graines, aretes, palmares=None):
         "duree_moyenne": round(sum(duree) / len(duree)) if duree else None,
         "annee_moyenne": round(sum(annees) / len(annees)) if annees else None,
         "palmares": palmares or {},
+        "empreinte": empreinte(graines, aretes),
     }

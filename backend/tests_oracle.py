@@ -216,6 +216,29 @@ def test_profil_visible():
           str([v["mot"] for v in p2["vocabulaire"][:5]]))
 
 
+def test_empreinte():
+    """L'empreinte est le vecteur profil rendu en glyphe : elle doit être DÉTERMINISTE
+    (même goût, même image), SENSIBLE (elle change quand le goût change) et se RÉSOUDRE
+    à mesure qu'on écrit — comme les affiches. C'est le Wrapped, dès la 1re arête."""
+    from recommender.profil_vue import empreinte
+    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners"])
+    a = empreinte(seeds, [])
+    check("l'empreinte se calcule", a is not None and len(a["cellules"]) > 0)
+    check("déterministe", a["cellules"] == empreinte(seeds, [])["cellules"])
+    autre = ids_from_titles(["Toy Story", "Spirited Away"])
+    if autre:
+        check("un autre goût donne une autre empreinte",
+              a["cellules"] != empreinte(autre, [])["cellules"])
+    # la finesse suit le nombre d'arêtes : le glyphe se résout avec toi
+    faux = [{"film_id": i, "valence": 0.7} for i in seeds] * 4
+    fin = empreinte(seeds, faux)
+    check(f"la finesse monte avec les arêtes ({a['finesse']} -> {fin['finesse']})",
+          fin["finesse"] > a["finesse"])
+    check("plus d'arêtes = plus de paliers", fin["niveaux"] > a["niveaux"])
+    check("les cellules restent dans les paliers",
+          all(0 <= c < a["niveaux"] for c in a["cellules"]))
+
+
 def test_carte_du_gout():
     """La carte doit être HONNÊTE : si la projection déforme trop, elle ment sur ce que
     le moteur fait. On vérifie qu'elle conserve mieux le voisinage qu'une ACP."""
@@ -272,7 +295,8 @@ if __name__ == "__main__":
               test_jamais_les_graines_ni_les_racontes, test_valence,
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
               test_boite_aux_lettres, test_pari_de_l_oracle, test_profil_visible,
-              test_carte_du_gout, test_serrure_preserve_les_graines):
+              test_empreinte, test_carte_du_gout,
+              test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()
     print(f"\n{'='*46}\n  {_ok} ok · {_ko} échecs")

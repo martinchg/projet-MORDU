@@ -61,6 +61,14 @@
   .terr .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
   .terr.mien{border-color:var(--red)}
   .terr.mien .m{color:var(--red)}
+  /* L'EMPREINTE : le vecteur profil (384D) rendu en glyphe */
+  .emp{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .emp canvas{image-rendering:pixelated;border:1px solid var(--line);background:#0a0c10;
+    width:216px;height:auto}
+  .emp .txt{flex:1;min-width:190px;font-size:13px;line-height:1.6;color:var(--mut)}
+  .emp .txt b{color:var(--ink)}
+  .emp .fin{height:5px;background:#191d24;margin-top:9px}
+  .emp .fin i{display:block;height:100%;background:var(--red);transition:width .5s}
   .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
 </style>
 </head>
@@ -144,6 +152,13 @@ function barres(items, cle, val){
     (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
     les motifs <b>sur-représentés</b> dans chaque zone, pas les plus fréquents — « drame »
     ne dit rien, « huis clos » nomme.</p>
+    <div class="bloc apparait" style="margin-bottom:16px">
+      <div class="lbl">Ton empreinte</div>
+      <div class="emp">
+        <canvas id="emp" width="240" height="160"></canvas>
+        <div class="txt" id="emptxt"></div>
+      </div>
+    </div>
     <div class="carte">
       <canvas id="cv" width="1180" height="620"></canvas>
       <div class="tip" id="tip"></div>
@@ -193,6 +208,35 @@ function barres(items, cle, val){
     <div id="ars"></div>`;
   MORDU.resoudreTexte(document.getElementById("h2a"),"Tes ressentis",{duree:700});
 
+  // ---- L'EMPREINTE ----
+  // Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en
+  // barres, on le montre tel quel — le vecteur replié en grille et quantifié sur la
+  // palette. Déterministe, et il SE RÉSOUT à mesure que tu écris : c'est le même
+  // principe que les affiches, appliqué à toi.
+  if(p.empreinte){
+    const E=p.empreinte, cv=document.getElementById("emp"), ctx=cv.getContext("2d");
+    const PAL=MORDU.PALETTE;
+    cv.width=E.largeur; cv.height=E.hauteur;
+    const im=ctx.createImageData(E.largeur,E.hauteur), d=im.data;
+    E.cellules.forEach((v,i)=>{
+      // on parcourt la palette du sombre au clair, en gardant le rouge pour le sommet
+      const t=v/Math.max(E.niveaux-1,1);
+      const c=PAL[Math.min(PAL.length-1, Math.round(t*(PAL.length-2)))];
+      d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
+    });
+    ctx.putImageData(im,0,0);
+    document.getElementById("emptxt").innerHTML=
+      `Ce glyphe est <b>ton vecteur de goût</b> — 384 dimensions repliées et quantifiées
+       sur la palette. Il est <b>déterministe</b> : même goût, même image ; et il change
+       dès que tu racontes un film.
+       <br><br>Il est encore <b>grossier</b> (${E.niveaux} paliers). Il se résout à mesure
+       que tu écris — comme les affiches. Vers douze ressentis, il atteint sa finesse
+       maximale.
+       <div class="fin"><i style="width:${Math.round(E.finesse*100)}%"></i></div>
+       <span style="font-family:var(--mono);font-size:9.5px">finesse ${Math.round(E.finesse*100)} %
+       · ${E.aretes} arête${E.aretes>1?"s":""}</span>`;
+  }
+
   // ---- LA CARTE ----
   MORDU.resoudreTexte(document.getElementById("hc"),"La carte de ton goût",{duree:800});
   MORDU.resoudreTexte(document.getElementById("hd"),"Le détail",{duree:700,retard:200});
@@ -220,6 +264,17 @@ function barres(items, cle, val){
         ctx.fillStyle=t>.66?"#2C3A4E":t>.33?"#222D3C":"#18202B";
         ctx.fillRect(x,y,CELL-1,CELL-1);
       });
+      // 1bis. BROUILLARD : les territoires où tu n'as jamais mis les pieds restent
+      //       dans la nuit. Ce qui reste éclairé, c'est ce que tu as parcouru — la
+      //       carte raconte alors ton exploration, pas seulement le catalogue.
+      const explores=new Set(C.territoires.filter(t=>t.tiens>0).map(t=>t.id));
+      if(explores.size){
+        C.points.filter(p=>p.z>=0 && !explores.has(p.z)).forEach(p=>{
+          ctx.fillStyle="rgba(7,8,10,.55)";
+          ctx.fillRect(snap(px(p))-1,snap(py(p))-1,CELL+1,CELL+1);
+        });
+      }
+
       // 2. les proches, puis les tiens : l'ordre compte, tes films au-dessus de tout
       C.points.filter(p=>p.k===1).forEach(p=>{
         ctx.fillStyle="#D0B278"; ctx.fillRect(snap(px(p)),snap(py(p)),CELL-1,CELL-1); });
