@@ -79,6 +79,30 @@ def _load_canons():
 _CANON = _load_canons()
 BONUS_CANON = 0.035   # léger : le canon nuance le classement, il ne le dicte pas
 
+# Un fait de box-office n'est PAS croustillant : « il a rapporté 100 125 643 dollars »
+# n'accroche personne et abîme l'organe de confiance. Mieux vaut aucun fait qu'un fait
+# plat — la carte tient déjà debout sur son argument.
+_HOOK_PLAT = re.compile(
+    r"box[- ]office|recettes|a rapport[ée]|dollars|entrées en france|budget de"
+    r"|grossed|million de dollars|prix du ticket", re.I)
+
+
+def _hook_valable(h):
+    """Filtre les faits ternes. Un hook faible vaut moins que pas de hook du tout."""
+    if not isinstance(h, dict):
+        return None
+    txt = (h.get("hook") or "").strip()
+    if not txt or len(txt) < 40:
+        return None
+    if _HOOK_PLAT.search(txt):
+        # on tente un candidat de repli avant d'abandonner
+        for c in (h.get("candidates") or []):
+            t = c.get("hook") if isinstance(c, dict) else (c if isinstance(c, str) else "")
+            if t and len(t) >= 40 and not _HOOK_PLAT.search(t):
+                return t.strip()
+        return None
+    return txt
+
 
 def _essentiel_de(film, refs):
     """Le film est-il un essentiel d'une personne déjà présente dans tes arêtes ?"""
@@ -423,7 +447,7 @@ def _argument(film, refs, registre, anc=None, variante=0):
 
     # le fait croustillant, s'il existe (organe de confiance)
     h = _hooks.get(str(film.get("id"))) or _hooks.get(film.get("id"))
-    croustillant = (h or {}).get("hook") if isinstance(h, dict) else None
+    croustillant = _hook_valable(h)
     return phrase, croustillant
 
 
