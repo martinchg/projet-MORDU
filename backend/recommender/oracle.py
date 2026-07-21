@@ -123,11 +123,30 @@ _HOOK_SANS_CONTEXTE = re.compile(
     r"Cela|Ce dernier|Cette dernière|Il|Elle|Ils|Elles)\b")
 
 
+# Le filon le plus riche de Wikipédia est « untel a refusé le rôle » — et le scoreur
+# le récompense, d'où une majorité d'annonces de casting. Or une annonce ne devient
+# une anecdote QUE si elle porte une raison ou une conséquence :
+#   « remplacé par Tom Sizemore pour des raisons inconnues »        -> sans valeur
+#   « Schwarzenegger, pris par ses fonctions de gouverneur »        -> ça accroche
+# On rejette donc l'annonce sèche, et on la garde si elle est causale.
+_ANNONCE = re.compile(
+    r"annonc|est (?:le |un )?premier choix|a été (?:choisi|engagé|confirmé)"
+    r"|rejoint (?:le casting|la distribution)|au même jour|pour des raisons inconnues"
+    r"|est (?:également )?en (?:pourparlers|négociation)", re.I)
+_CAUSALITE = re.compile(
+    r"parce qu|en raison de|à la suite d|faute de|car il|car elle|puisqu"
+    r"|ce qui (?:a |lui )|si bien que|au point de|refus|blessé|blessure|accident|"
+    r"grève|mort|décès|enceinte|grossesse|conflit|dispute|menac|licenci|renvoi|"
+    r"improvis|record|prises|cauchemar|inspir|réécri|faillit|a failli", re.I)
+
+
 def _texte_ok(t):
     if not t or len(t) < 45:
         return False
     if _HOOK_PLAT.search(t) or _HOOK_INCERTAIN.search(t) or _HOOK_SANS_CONTEXTE.match(t):
         return False
+    if _ANNONCE.search(t) and not _CAUSALITE.search(t):
+        return False          # annonce sèche : une info, pas une anecdote
     # moins de 5 marqueurs français = ce n'est pas du français
     return len(_FRANCAIS.findall(t)) >= 5
 
