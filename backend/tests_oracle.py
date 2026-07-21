@@ -119,6 +119,26 @@ def test_profil_pondere_par_valence():
     check("valence change le profil", float((aime * deteste).sum()) < 0.999)
 
 
+def test_canon_invitation_jamais_dette():
+    """MANIFESTE §3 : un essentiel ne se cite que si la personne est DÉJÀ dans tes
+    arêtes. « Un essentiel de Fincher » invite ; « il FAUT Citizen Kane » endette."""
+    from recommender.oracle import _essentiel_de
+    refs = [m for m in _movies if m["title"] in ("Se7en", "Zodiac")]
+    check("références trouvées", len(refs) == 2)
+    gone = [m for m in _movies if m["title"] == "Gone Girl"]
+    if gone:
+        e = _essentiel_de(gone[0], refs)
+        check("Gone Girl = essentiel de Fincher (via Se7en)",
+              e is not None and e[0] == "David Fincher", str(e))
+    toy = [m for m in _movies if m["title"] == "Toy Story"]
+    if toy:
+        check("Toy Story n'est PAS une invitation pour un profil Fincher",
+              _essentiel_de(toy[0], refs) is None)
+    # sans références, aucune invitation possible (pas de canon absolu)
+    if gone:
+        check("aucun canon sans arête préalable", _essentiel_de(gone[0], []) is None)
+
+
 def test_serrure_preserve_les_graines():
     """Régression : poser un choix effaçait les graines (donc tout le profil)."""
     import os
@@ -140,7 +160,8 @@ if __name__ == "__main__":
     for f in (test_trois_axes_orthogonaux, test_argument_toujours_ancre,
               test_argument_en_francais, test_suites_ecartees,
               test_jamais_les_graines_ni_les_racontes, test_valence,
-              test_profil_pondere_par_valence, test_serrure_preserve_les_graines):
+              test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
+              test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()
     print(f"\n{'='*46}\n  {_ok} ok · {_ko} échecs")

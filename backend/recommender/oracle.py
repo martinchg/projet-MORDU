@@ -52,6 +52,44 @@ VIVIER = 12
 ANCRE_OBLIGATOIRE = True
 
 _HOOKS_PATH = os.path.join(DATA_DIR, "hooks.json")
+_DOMAINES_PATH = os.path.join(DATA_DIR, "domaines.json")
+
+
+def _load_canons():
+    """film_id -> [(nom, type)] des domaines dont ce film est un ESSENTIEL.
+
+    Le canon n'est PAS une checklist affichée (MANIFESTE §7 : pas de jauge, pas de
+    dette) — c'est un ingrédient invisible de l'arbitrage. Un essentiel de quelqu'un
+    dont tu as déjà vu un film est une invitation ; un essentiel sorti d'une liste
+    absolue serait une dette. D'où : on ne s'en sert QUE si la personne apparaît déjà
+    dans tes références.
+    """
+    try:
+        with open(_DOMAINES_PATH, encoding="utf-8") as f:
+            doms = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    out = {}
+    for d in doms:
+        for film in d.get("canon") or []:
+            out.setdefault(film["id"], []).append((d["name"], d["type"]))
+    return out
+
+
+_CANON = _load_canons()
+BONUS_CANON = 0.035   # léger : le canon nuance le classement, il ne le dicte pas
+
+
+def _essentiel_de(film, refs):
+    """Le film est-il un essentiel d'une personne déjà présente dans tes arêtes ?"""
+    noms = set()
+    for r in refs:
+        noms |= set(r.get("director") or [])
+        noms |= set((r.get("cast") or [])[:6])
+    for nom, typ in _CANON.get(film.get("id"), []):
+        if nom in noms:
+            return nom, typ
+    return None
 
 
 def _load_hooks():
@@ -375,6 +413,14 @@ def _argument(film, refs, registre, anc=None, variante=0):
                   "ecart": "Voisin de ce que tu aimes, par un autre chemin.",
                   "pari": "Rien à voir avec tes habitudes — c'est le pari."}[registre]
 
+    # Le canon en INVITATION : on le mentionne seulement si la personne est déjà dans
+    # tes arêtes. « Un essentiel de Fincher, et tu ne l'as pas vu » invite ; « il FAUT
+    # avoir vu Citizen Kane » endette. La nuance est toute la ligne du manifeste.
+    ess = _essentiel_de(film, refs)
+    if ess:
+        quoi = {"director": "de", "actor": "de", "studio": "de"}.get(ess[1], "de")
+        phrase += f" Un essentiel {quoi} {ess[0]}, que tu n'as pas encore vu."
+
     # le fait croustillant, s'il existe (organe de confiance)
     h = _hooks.get(str(film.get("id"))) or _hooks.get(film.get("id"))
     croustillant = (h or {}).get("hook") if isinstance(h, dict) else None
@@ -479,7 +525,10 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
             # à affinité voisine, un film mieux tenu passe devant : recommander un
             # obscur mal noté coûte de la confiance, et la confiance est tout ici.
             note = _movies[i].get("imdb_rating") or _movies[i].get("vote_average") or 6.5
-            return -(sims[i] + 0.02 * (float(note) - 6.5))
+            s = sims[i] + 0.02 * (float(note) - 6.5)
+            if _essentiel_de(_movies[i], refs):
+                s += BONUS_CANON      # un essentiel de quelqu'un que tu connais déjà
+            return -s
 
         pool.sort(key=_rang)
         ordre = pool[: VIVIER_PAR_REGISTRE.get(registre, VIVIER)]
