@@ -10,6 +10,7 @@ c'est ce qui est INVARIANT à travers ses arêtes. On calcule donc ce qui revien
 Volontairement honnête sur sa propre faiblesse : avec deux arêtes, on le DIT plutôt que
 d'inventer un portrait. Pas de faux profilage.
 """
+import os
 import re
 from collections import Counter
 
@@ -47,6 +48,53 @@ def _mots(texte):
     return [m for m in t.split() if len(m) >= 4 and m not in _VIDES]
 
 
+_ORDRE_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "data", "_ordre_dims.npy")
+
+
+def _ordre_dimensions():
+    """Range les 384 dimensions pour que les CORRÉLÉES soient voisines.
+
+    Sans ça le glyphe est du poivre et sel par construction : les dimensions d'un
+    embedding sont dans un ordre arbitraire, donc deux cellules voisines n'ont aucun
+    lien et l'œil ne voit qu'un grésillement. On ordonne par regroupement hiérarchique
+    avec ordonnancement optimal des feuilles — mesuré, la corrélation entre voisins
+    passe de 0,079 à 0,242 (3x).
+
+    Plafond honnête : seules 0,4 % des paires de dimensions dépassent |r| = 0,3. Les
+    embeddings sont largement décorrélés par entraînement — le glyphe gagne des
+    régions, il ne deviendra jamais une image figurative. Il n'y a rien de plus à
+    en tirer.
+
+    Calculé une fois, mis en cache : l'ordre ne dépend que du catalogue.
+    """
+    from .recommend import _E
+    if os.path.exists(_ORDRE_CACHE):
+        try:
+            o = np.load(_ORDRE_CACHE)
+            if len(o) == _E.shape[1]:
+                return o
+        except Exception:
+            pass
+    try:
+        from scipy.cluster.hierarchy import leaves_list, linkage, optimal_leaf_ordering
+        from scipy.spatial.distance import squareform
+        C = np.abs(np.corrcoef(_E.T))
+        np.fill_diagonal(C, 1.0)
+        D = 1.0 - C
+        np.fill_diagonal(D, 0.0)
+        D = (D + D.T) / 2
+        cond = squareform(D, checks=False)
+        o = leaves_list(optimal_leaf_ordering(linkage(cond, method="average"), cond))
+    except Exception:
+        o = np.arange(_E.shape[1])          # sans scipy : ordre naturel, ça marche quand même
+    np.save(_ORDRE_CACHE, o)
+    return o
+
+
+_ORDRE = None
+
+
 def empreinte(graines, aretes, largeur=24):
     """TON EMPREINTE — le vecteur profil (384D) rendu en glyphe.
 
@@ -64,7 +112,10 @@ def empreinte(graines, aretes, largeur=24):
     p = profil(graines, aretes)
     if p is None:
         return None
-    v = np.asarray(p, dtype=float)
+    global _ORDRE
+    if _ORDRE is None:
+        _ORDRE = _ordre_dimensions()
+    v = np.asarray(p, dtype=float)[_ORDRE]     # dimensions corrélées côte à côte
     hauteur = int(np.ceil(len(v) / largeur))
     pad = np.zeros(hauteur * largeur)
     pad[: len(v)] = v

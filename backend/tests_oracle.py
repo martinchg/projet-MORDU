@@ -296,6 +296,20 @@ def test_empreinte():
     check("plus d'arêtes = plus de paliers", fin["niveaux"] > a["niveaux"])
     check("les cellules restent dans les paliers",
           all(0 <= c < a["niveaux"] for c in a["cellules"]))
+    # Les dimensions sont ORDONNÉES pour que les corrélées soient voisines : sans ça
+    # le glyphe est du poivre et sel par construction (l'ordre d'un embedding est
+    # arbitraire, donc deux cellules voisines n'ont aucun lien).
+    import numpy as np
+    from recommender.profil_vue import _ordre_dimensions
+    from recommender.recommend import _E
+    o = _ordre_dimensions()
+    check("l'ordre couvre toutes les dimensions, sans doublon",
+          len(o) == _E.shape[1] and len(set(int(x) for x in o)) == _E.shape[1])
+    C = np.abs(np.corrcoef(_E.T))
+    nat = np.mean([C[i, i + 1] for i in range(_E.shape[1] - 1)])
+    ord_ = np.mean([C[o[i], o[i + 1]] for i in range(_E.shape[1] - 1)])
+    check(f"voisinage plus corrélé qu'en ordre naturel ({ord_:.3f} > {nat:.3f})",
+          ord_ > nat * 1.5)
 
 
 def test_carte_du_gout():

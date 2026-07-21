@@ -42,3 +42,4 @@ _standalone.html
 .claude/settings.local.json
 _carte.npz
 _carte_pacmap.npy
+_ordre_dims.npy
