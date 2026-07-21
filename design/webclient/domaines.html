@@ -128,7 +128,7 @@ function renderGrid(){
   const label={director:"Réal",actor:"Acteur",studio:"Studio"};
   gridEl.innerHTML='<div class="grid">'+list.map((d,idx)=>{
     const m=mastery(d), seen=d.catalogue_ids.filter(i=>watched.has(i)).length;
-    return `<div class="dom${m>=0.999?' done':''}" data-i="${idx}">
+    return `<div class="dom apparait${m>=0.999?' done':''}" data-i="${idx}">
       <div class="frame"><canvas></canvas><span class="tag">${label[d.type]}</span></div>
       <div class="name">${d.name}</div>
       <div class="m"><i style="width:${Math.round(m*100)}%"></i></div>

@@ -45,9 +45,15 @@
     font-family:var(--mono);font-size:9.5px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
   .carte .lg b{color:var(--ink);font-weight:400}
   .carte .lg i{display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:-1px}
+  /* ANCHOR POSITIONING : l'infobulle s'accroche au canvas et se RETOURNE toute seule
+     quand elle déborderait — @position-try remplace le calcul manuel de bord. */
+  #cv{ anchor-name: --carte; }
   .carte .tip{position:absolute;pointer-events:none;background:#0b0b0b;border:1px solid var(--red);
     padding:4px 8px;font-size:11.5px;white-space:nowrap;transform:translate(-50%,-160%);opacity:0;
     transition:opacity .12s}
+  @supports (anchor-name: --x){
+    .carte .tip{ position-anchor: --carte; position-try-fallbacks: flip-block, flip-inline; }
+  }
   .carte .tip.on{opacity:1}
   .terrs{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px;margin-top:12px}
   .terr{border:1px solid var(--line);padding:9px 11px;background:var(--panel)}
@@ -152,10 +158,10 @@ function barres(items, cle, val){
 
     <h2 style="margin-top:30px" id="hd"></h2>
     <div class="grille">
-      <div class="bloc"><div class="lbl">Tes motifs</div>${nuage}</div>
-      <div class="bloc"><div class="lbl">Tes genres</div>${barres(p.genres,"nom","n")}</div>
-      <div class="bloc"><div class="lbl">Les mots que tu emploies</div>${vocab}</div>
-      <div class="bloc"><div class="lbl">Signatures</div>
+      <div class="bloc apparait"><div class="lbl">Tes motifs</div>${nuage}</div>
+      <div class="bloc apparait"><div class="lbl">Tes genres</div>${barres(p.genres,"nom","n")}</div>
+      <div class="bloc apparait"><div class="lbl">Les mots que tu emploies</div>${vocab}</div>
+      <div class="bloc apparait"><div class="lbl">Signatures</div>
         <div class="liste">
           ${p.realisateurs.map(r=>`<div>${esc(r.nom)}<span class="n">${r.n}</span></div>`).join("")||'<span class="vide">—</span>'}
         </div>
@@ -164,7 +170,7 @@ function barres(items, cle, val){
           ${p.acteurs.slice(0,4).map(a=>`<div>${esc(a.nom)}<span class="n">${a.n}</span></div>`).join("")||'<span class="vide">—</span>'}
         </div>
       </div>
-      <div class="bloc"><div class="lbl">Ta forme</div>
+      <div class="bloc apparait"><div class="lbl">Ta forme</div>
         <div class="liste">
           <div>Durée moyenne <span class="n">${p.duree_moyenne??"—"} min</span></div>
           <div>Époque moyenne <span class="n">${p.annee_moyenne??"—"}</span></div>
@@ -176,7 +182,7 @@ function barres(items, cle, val){
           : `<p class="vide">Aucun pari jugé pour l'instant. C'est <b>lui</b> qui est noté,
              jamais toi — tu ne peux pas échouer ici.</p>`}
       </div>
-      <div class="bloc"><div class="lbl">Ce vers quoi tu penches</div>
+      <div class="bloc apparait"><div class="lbl">Ce vers quoi tu penches</div>
         <p class="vide" style="margin-bottom:9px">Les films du catalogue les plus proches de
         ton vecteur. Ce ne sont pas des recommandations — l'oracle, lui, arbitre aussi
         l'orthogonalité et ton envie du soir.</p>
@@ -279,7 +285,7 @@ function barres(items, cle, val){
     cv.addEventListener("mouseleave",()=>tip.classList.remove("on"));
 
     document.getElementById("terrs").innerHTML=C.territoires.map(t=>
-      `<div class="terr ${t.tiens?'mien':''}" data-id="${t.id}">
+      `<div class="terr apparait ${t.tiens?'mien':''}" data-id="${t.id}">
         <div class="n">${esc(t.nom)}</div>
         <div class="m">${t.n} films${t.tiens?` · ${t.tiens} à toi`:""}${t.affinite!==undefined?` · affinité ${t.affinite.toFixed(2)}`:""}</div>
       </div>`).join("");

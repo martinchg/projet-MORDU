@@ -15,8 +15,12 @@
   --mono:"SF Mono",ui-monospace,Menlo,monospace;
 }
 *{box-sizing:border-box}
+/* overflow-x: CLIP et non hidden. `hidden` fait passer l'autre axe en `auto` et crée
+   un conteneur de défilement parasite : la ViewTimeline des animations au scroll s'y
+   rattache, ne trouve rien à mesurer et reste inactive (currentTime null). `clip` rogne
+   sans créer de conteneur — c'est exactement pour ça qu'il existe. */
 body{margin:0;position:relative;background:var(--bg);color:var(--ink);
-  font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:clip}
 .wrap{position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:22px 20px 80px}
 
 /* --- le logo : ici l'ombre rouge reste, c'est sa place --- */
@@ -77,3 +81,73 @@ textarea:focus{outline:none;border-color:var(--red)}
   .nav a{padding:7px 10px;font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+
+
+/* =====================================================================================
+   PLATEFORME WEB 2026 — tout ce qui suit est en amélioration progressive : si le
+   navigateur ne connaît pas, la page reste exactement telle qu'elle était.
+   ===================================================================================== */
+
+/* --- 1. VIEW TRANSITIONS entre documents ------------------------------------------
+   MORDU est un multi-pages : chaque navigation était un flash blanc. Ici les pages
+   MORPHENT l'une dans l'autre, et les éléments qui portent le même view-transition-name
+   glissent d'une page à l'autre au lieu de disparaître puis réapparaître.
+   Chrome/Safari : complet. Firefox : partiel (il ignore, sans casser). */
+@view-transition { navigation: auto; }
+
+.brand{ view-transition-name: marque; }
+.nav  { view-transition-name: navigation; }
+.status{ view-transition-name: etat; }
+
+::view-transition-old(root){ animation: mordu-sortie .22s ease-in both; }
+::view-transition-new(root){ animation: mordu-entree .3s ease-out both; }
+@keyframes mordu-sortie { to { opacity:0; filter:brightness(.4) saturate(.3); } }
+@keyframes mordu-entree { from { opacity:0; filter:brightness(.4) saturate(.3); } }
+
+/* --- 2. ANIMATIONS PILOTÉES PAR LE SCROLL ------------------------------------------
+   animation-timeline: view() lie l'animation à l'entrée de l'élément dans le viewport.
+   Zéro JavaScript, zéro IntersectionObserver, et ça tourne sur le COMPOSITEUR — donc
+   ça ne peut pas saccader même pendant que le shader dessine. */
+@supports (animation-timeline: view()) {
+  .apparait{
+    /* PIÈGE : le raccourci « animation: nom linear both » fixe animation-duration à 0s,
+       et une timeline de progression exige « auto ». En raccourci, l'animation n'a
+       aucun effet et l'élément reste à son état final. D'où les propriétés longues. */
+    animation-name: mordu-monte;
+    animation-duration: auto;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: view();
+    animation-range: entry 4% entry 42%;
+  }
+  @keyframes mordu-monte{
+    from { opacity:0; transform: translateY(15px); }
+    to   { opacity:1; transform: none; }
+  }
+}
+
+/* --- 3. CONTAINER QUERIES -----------------------------------------------------------
+   Une carte doit réagir à SA propre largeur, pas à celle de la fenêtre : sinon elle
+   casse dès qu'on la remet dans une colonne étroite, une modale ou une sidebar.
+   Le conteneur est déclaré sur un HÔTE enveloppant (voir oracle.html) : un élément ne
+   peut pas interroger son propre container-type. */
+
+/* --- 4. RAFFINEMENTS TYPOGRAPHIQUES -------------------------------------------------
+   text-wrap: balance égalise les lignes d'un titre court (plus de mot orphelin) ;
+   pretty évite les veuves en fin de paragraphe. */
+h2, h3, .brand, .carte .titre, a.route .t{ text-wrap: balance; }
+.hint, .arg, .crou, .thse, .d{ text-wrap: pretty; }
+
+/* le champ de ressenti grandit avec le texte : plus de scroll interne dans la serrure */
+textarea{ field-sizing: content; }
+
+/* transitions vers/depuis auto (hauteur inconnue) — impossible avant 2025 */
+@supports (interpolate-size: allow-keywords) {
+  :root{ interpolate-size: allow-keywords; }
+}
+
+/* --- 5. respect des préférences ---------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .apparait{ animation: none; }
+}
