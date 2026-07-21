@@ -206,12 +206,13 @@ function vueOnboarding(){
       data-id="${f.id}"><canvas></canvas><div class="t">${esc(f.title)}</div></div>`).join("");
     res.querySelectorAll(".f").forEach((el,i)=>{
       const f=films[i];
-      MORDU.tramer(el.querySelector("canvas"), img(f.poster_path),
-        {net:.55, temperature:MORDU.temperature(f), w:110, h:165, pixMin:26});
+      // NET : tu cherches un film que tu CONNAIS. Le tramer ici ne cachait rien
+      // d'utile — ça rendait juste la recherche plus difficile.
       const im=img(f.poster_path);
-      if(im && !im.complete) im.addEventListener("load",()=>MORDU.tramer(
-        el.querySelector("canvas"),im,{net:.55,temperature:MORDU.temperature(f),
-        w:110,h:165,pixMin:26}),{once:true});
+      const go=()=>MORDU.tramer(el.querySelector("canvas"), im,
+        {net:1, temperature:MORDU.temperature(f), w:110, h:165});
+      if(im && !im.complete) im.addEventListener("load",go,{once:true});
+      go();
       el.addEventListener("click",()=>{
         if(choisis.find(c=>c.id===f.id)) return;
         if(choisis.length>=N){ cpt.textContent=`${N} maximum — retire-en un`; return; }
@@ -408,11 +409,12 @@ async function rendreBoite(){
     </div>`).join("");
   it.querySelectorAll(".it").forEach((el,i)=>{
     const b=items[i];
-    MORDU.tramer(el.querySelector("canvas"), img(b.poster_path),
-      {net:.12, temperature:MORDU.temperature(b), w:64, h:96, pixMin:9});
+    // NET : tu as déposé ces films toi-même, tu sais ce que c'est.
     const im=img(b.poster_path);
-    if(im&&!im.complete) im.addEventListener("load",()=>MORDU.tramer(el.querySelector("canvas"),im,
-      {net:.12,temperature:MORDU.temperature(b),w:64,h:96,pixMin:9}),{once:true});
+    const go=()=>MORDU.tramer(el.querySelector("canvas"), im,
+      {net:1, temperature:MORDU.temperature(b), w:64, h:96});
+    if(im&&!im.complete) im.addEventListener("load",go,{once:true});
+    go();
     el.querySelector(".x").addEventListener("click",async()=>{
       await fetch(`${API}/api/boite/${b.film_id}`,{method:"DELETE"}); rendreBoite();
     });
@@ -430,7 +432,7 @@ async function rendreBoite(){
     resb.querySelectorAll(".f").forEach((el,i)=>{
       const f=films[i];
       MORDU.tramer(el.querySelector("canvas"), img(f.poster_path),
-        {net:.5,temperature:MORDU.temperature(f),w:78,h:117,pixMin:22});
+        {net:1,temperature:MORDU.temperature(f),w:78,h:117});
       el.addEventListener("click",async()=>{
         await POST("/api/boite",{film_id:f.id,titre:f.title,source:src.value.trim()||null});
         qb.value=""; resb.innerHTML=""; rendreBoite();

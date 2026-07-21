@@ -250,7 +250,7 @@ function barres(items, cle, val){
       const etat=muets.map(()=>"");
       el.querySelectorAll(".f").forEach((f,i)=>{
         const m=muets[i], cv=f.querySelector("canvas"), im=img(m.poster_path);
-        const go=()=>MORDU.tramer(cv,im,{net:.5,temperature:MORDU.temperature(m),w:64,h:96,pixMin:14});
+        const go=()=>MORDU.tramer(cv,im,{net:1,temperature:MORDU.temperature(m),w:64,h:96});
         if(im&&!im.complete) im.addEventListener("load",go,{once:true}); go();
         const ta=f.querySelector("textarea"), cp=f.querySelector(".cpt");
         ta.addEventListener("input",()=>{
@@ -429,8 +429,8 @@ function barres(items, cle, val){
       const fc=fiche.querySelector("canvas");
       if(fc && det && det.poster_path){
         const im=img(det.poster_path);
-        const go=()=>MORDU.tramer(fc,im,{net:.5,temperature:MORDU.temperature(det),
-                                         w:200,h:300,pixMin:20});
+        const go=()=>MORDU.tramer(fc,im,{net:1,temperature:MORDU.temperature(det),
+                                         w:200,h:300});
         if(!im.complete) im.addEventListener("load",go,{once:true});
         go();
       }
@@ -453,7 +453,7 @@ function barres(items, cle, val){
     <div class="t">${esc(v.title)}</div><div class="a">${v.affinite.toFixed(2)}</div></div>`).join("");
   vs.querySelectorAll(".v").forEach((el,i)=>{
     const v=p.voisins[i], cv=el.querySelector("canvas"), im=img(v.poster_path);
-    const go=()=>MORDU.tramer(cv,im,{net:.45,temperature:MORDU.temperature(v),w:88,h:132,pixMin:20});
+    const go=()=>MORDU.tramer(cv,im,{net:1,temperature:MORDU.temperature(v),w:88,h:132});
     if(im&&!im.complete) im.addEventListener("load",go,{once:true});
     go();
   });

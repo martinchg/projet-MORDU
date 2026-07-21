@@ -103,6 +103,18 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
 Pas de jauges, pas de badges, pas de streaks. Le rythme de l'app est indexé sur ta vraie
 vie de spectateur — l'anti-Duolingo, assumé.
 
+**LA RÈGLE DU TRAMAGE (21/07, après remarque de Martin : « c'est trop homogène »).**
+Le dither ne s'applique QUE lorsqu'une image doit être CACHÉE :
+
+> **Tramé = ce qui t'est encore caché. Net = ce que tu connais déjà.**
+
+Il reste donc sur les 3 cartes aveugles et sur les portraits de domaines — là il porte
+une mécanique. Il est retiré de la recherche, de la boîte aux lettres, des voisins du
+profil et des fiches : là il était décoratif, et dans la recherche carrément nuisible
+(on cherche un film qu'on connaît, le tramer ne cachait rien et gênait). Mettre du
+dither partout contredisait la force même de cette DA — être porteuse, pas décorative —
+et écrasait le contraste qui lui donne son sens.
+
 ## 6. La boîte aux lettres (PAS une watchlist)
 
 Un pote te conseille un film, tu vois une bande-annonce, le film du soir est trop long →
