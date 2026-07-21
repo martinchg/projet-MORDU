@@ -107,10 +107,26 @@ _FRANCAIS = re.compile(
 HOOK_SCORE_MIN = 10.0
 
 
+# VÉRITÉ. Le fait croustillant est l'organe de confiance : s'il est faux ou déformé,
+# il détruit exactement ce qu'il est censé bâtir. Deux garde-fous mesurés sur les
+# données réelles (chacun ~2 % des hooks retenus) :
+# 1. un conditionnel ou une rumeur (« aurait choisi », « selon la rumeur ») affirmé
+#    sur une carte devient un petit mensonge ;
+# 2. une phrase qui s'ouvre sur un connecteur ou un pronom (« Mais son audition… »,
+#    « Ainsi le naufrage… ») a son antécédent AILLEURS : sortie de son contexte, elle
+#    peut dire autre chose que ce que la source dit.
+_HOOK_INCERTAIN = re.compile(
+    r"\baurait\b|\bserait\b|selon (?:la rumeur|certaines|des rumeurs)|rumeur"
+    r"|on dit que|il se murmure|prétendument", re.I)
+_HOOK_SANS_CONTEXTE = re.compile(
+    r"^(?:Mais|Ainsi|Cependant|En fait|Toutefois|Or|Pourtant|Néanmoins|Celui|Celle|"
+    r"Cela|Ce dernier|Cette dernière|Il|Elle|Ils|Elles)\b")
+
+
 def _texte_ok(t):
     if not t or len(t) < 45:
         return False
-    if _HOOK_PLAT.search(t):
+    if _HOOK_PLAT.search(t) or _HOOK_INCERTAIN.search(t) or _HOOK_SANS_CONTEXTE.match(t):
         return False
     # moins de 5 marqueurs français = ce n'est pas du français
     return len(_FRANCAIS.findall(t)) >= 5
