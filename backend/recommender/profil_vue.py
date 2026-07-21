@@ -83,6 +83,13 @@ def empreinte(graines, aretes, largeur=24):
     if bloc > 1:
         hh, ww = hauteur // bloc, largeur // bloc
         reduit = g[: hh * bloc, : ww * bloc].reshape(hh, bloc, ww, bloc).mean(axis=(1, 3))
+        # RENORMALISER après l'agrégation, sinon le glyphe est plat aux premiers stades.
+        # Moyenner un vecteur bruité tire toutes les cellules vers le centre ; quantifiées
+        # ensuite sur 4-5 paliers, elles tombent presque toutes sur le même -> un aplat.
+        # Une basse résolution doit être GROSSIÈRE ET CONTRASTÉE, comme une image très
+        # pixelisée, pas un lavis uniforme.
+        rlo, rhi = np.percentile(reduit, 5), np.percentile(reduit, 95)
+        reduit = np.clip((reduit - rlo) / max(rhi - rlo, 1e-9), 0, 1)
         # on ré-étale pour garder la même taille d'image, d'où les gros pixels
         g = np.repeat(np.repeat(reduit, bloc, axis=0), bloc, axis=1)
         g = np.pad(g, ((0, hauteur - g.shape[0]), (0, largeur - g.shape[1])), mode="edge")
