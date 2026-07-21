@@ -71,6 +71,7 @@
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 
+<script src="mordu.js"></script>
 <script>
 const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 const LS = "mordu_vus";
@@ -82,10 +83,9 @@ const statusEl=document.getElementById("status"), gridEl=document.getElementById
 function setStatus(ok,t){ statusEl.className="status "+(ok?"ok":"ko"); statusEl.textContent=t; }
 async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
 
-// --- dithering ---
-const PAL=[[10,12,16],[20,28,40],[34,46,60],[52,74,84],[80,104,112],[120,110,72],[168,138,84],[208,178,120],[234,228,212],[150,58,58],[214,32,28]];
-const BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
-function nearest(r,g,b){let bi=0,bd=1e9;for(let i=0;i<PAL.length;i++){const p=PAL[i],dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;bi=i;}}return PAL[bi];}
+// --- rendu : moteur partagé (mordu.js) --------------------------------------------
+// Un seul contexte WebGL pour toute la grille : un contexte par vignette ferait
+// sauter la limite du navigateur (~16) dès la centaine de portraits.
 const imgCache={};
 function loadImg(path){
   if(!path) return null;
@@ -97,35 +97,14 @@ function loadImg(path){
 function mastery(d){ if(!d.catalogue_ids.length) return 0; const seen=d.catalogue_ids.filter(i=>watched.has(i)).length; return seen/d.catalogue_ids.length; }
 function paint(cv, path, m, type){
   const im=loadImg(path);
-  const draw=()=>{
-    // plus la maîtrise est haute, plus le buffer est fin (donc net). À 100% : image brute nette.
-    const done=m>=0.999;
-    const bw=done?260:Math.max(20, Math.round(20 + 130*m));
-    const bh=Math.round(bw*4/3);
-    cv.width=bw; cv.height=bh;
-    const ctx=cv.getContext("2d",{willReadFrequently:true});
-    ctx.fillStyle="#0a0c10"; ctx.fillRect(0,0,bw,bh);
-    if(im && im.complete && im.naturalWidth){
-      if(type==="studio"){ // logo : contenu centré (pas rogné)
-        const s=Math.min(bw/im.width,bh/im.height)*0.82, w=im.width*s,h=im.height*s;
-        ctx.drawImage(im,(bw-w)/2,(bh-h)/2,w,h);
-      } else { // portrait : cover
-        const ar=bw/bh,iar=im.width/im.height; let sw,sh,sx,sy;
-        if(iar>ar){sh=im.height;sw=sh*ar;sx=(im.width-sw)/2;sy=0;}else{sw=im.width;sh=sw/ar;sx=0;sy=(im.height-sh)/2;}
-        ctx.drawImage(im,sx,sy,sw,sh,0,0,bw,bh);
-      }
-    }
-    if(done) return; // net + couleur
-    let dat; try{dat=ctx.getImageData(0,0,bw,bh);}catch(e){return;}
-    const d=dat.data;
-    for(let y=0;y<bh;y++)for(let x=0;x<bw;x++){const i=(y*bw+x)*4;
-      let r=(d[i]-128)*1.14+128-14,g=(d[i+1]-128)*1.14+128-12,b=(d[i+2]-128)*1.10+128-2;
-      const t=(BAYER[y&3][x&3]/16-0.5)*58; r+=t;g+=t;b+=t;
-      const c=nearest(r,g,b); d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];}
-    ctx.putImageData(dat,0,0);
-  };
-  if(im && !im.complete){ im.addEventListener("load",draw,{once:true}); im.addEventListener("error",draw,{once:true}); }
-  draw();
+  const rendre=()=>MORDU.tramer(cv, im, {
+    net:m, w:150, h:200, pixMin:14, mode:(type==="studio"?"contain":"cover"),
+    temperature:(m-0.5)*0.5,          // plus tu maîtrises, plus le portrait se réchauffe
+    exposition:0.9                     // un portrait doit rester DEVINABLE : ici on ne cache
+                                       // pas le film, on mesure ta connaissance
+  });
+  if(im && !im.complete){ im.addEventListener("load",rendre,{once:true}); im.addEventListener("error",rendre,{once:true}); }
+  rendre();
 }
 
 function renderGrid(){
@@ -179,6 +158,8 @@ document.getElementById("filters").addEventListener("click",e=>{
   document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed",x===b));
   renderGrid();
 });
+
+MORDU.fond({opacite:.5});
 
 (async()=>{
   try{

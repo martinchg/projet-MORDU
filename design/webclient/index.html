@@ -10,7 +10,7 @@
     --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif;
     --sans:-apple-system,"Helvetica Neue",Arial,sans-serif; --mono:"SF Mono",ui-monospace,Menlo,monospace; }
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-  .wrap{max-width:860px;margin:0 auto;padding:34px 20px 70px}
+  .wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:34px 20px 70px}
   .brand{font-family:var(--disp);font-size:64px;letter-spacing:.02em;text-transform:uppercase;
     text-shadow:4px 4px 0 var(--red);margin:0 0 6px;line-height:.95}
   .thse{color:var(--mut);font-size:14.5px;line-height:1.6;max-width:56ch;margin:0 0 22px}
@@ -37,7 +37,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 class="brand">MORDU</h1>
+  <h1 class="brand" id="marque">MORDU</h1>
   <p class="thse">MORDU ne te montre pas un catalogue. Il te tend <b>trois films</b> — trois
     directions, trois arguments. Tu ne choisis pas un film parmi des milliers :
     tu déclares ton <b>envie du soir</b>.</p>
@@ -79,7 +79,10 @@
   <div class="note" id="aide"></div>
 </div>
 
+<script src="mordu.js"></script>
 <script>
+MORDU.fond({opacite:.55});
+MORDU.resoudreTexte(document.getElementById("marque"),"MORDU",{duree:800});
 const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 const st = document.getElementById("status");
 document.getElementById("docs").href = API + "/docs";

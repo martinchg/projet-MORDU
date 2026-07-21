@@ -73,16 +73,30 @@ def test_argument_en_francais():
 
 
 def test_suites_ecartees():
-    """Proposer « Scream VI » sans les précédents est une faute produit."""
+    """Proposer « Scream VI » sans les précédents est une faute produit — MAIS la règle
+    est CONDITIONNELLE : si tu as vu la base, la suite redevient recommandable."""
     cas = [("Scream VI", True), ("Kill Bill: Vol. 2", True), ("The Godfather Part II", True),
-           ("Blade Runner 2049", False), ("Se7en", False), ("12 Angry Men", False),
+           ("Glass Onion: A Knives Out Mystery", True),   # base APRÈS les deux-points
+           ("Blade Runner 2049", True),                   # c'est bien une suite
+           ("Se7en", False), ("12 Angry Men", False),
            ("X-Men", False), ("1917", False), ("Ocean's Eleven", False)]
     for titre, attendu in cas:
-        check(f"suite? {titre} = {attendu}", _est_suite({"title": titre}) == attendu)
+        check(f"écartée sans la base ? {titre} = {attendu}",
+              _est_suite({"title": titre}) == attendu)
+
+    # ...et redeviennent valides quand la base a été vue
+    vus = {"blade runner", "knives out"}
+    for titre in ("Blade Runner 2049", "Glass Onion: A Knives Out Mystery"):
+        check(f"base vue -> {titre} redevient proposable",
+              _est_suite({"title": titre}, vus) is False)
+    check("base non vue -> Scream VI reste écarté",
+          _est_suite({"title": "Scream VI"}, vus) is True)
+
     seeds = ids_from_titles(GRAINES)
+    vus_t = {(m["title"] or "").lower() for m in _movies if m["id"] in seeds}
     trouvees = [c["title"] for s in range(1, 21)
-                for c in tirage(seed_ids=seeds, seed=s) if _est_suite(c)]
-    check("aucune suite tirée", not trouvees, str(trouvees[:3]))
+                for c in tirage(seed_ids=seeds, seed=s) if _est_suite(c, vus_t)]
+    check("aucune suite orpheline tirée", not trouvees, str(trouvees[:3]))
 
 
 def test_jamais_les_graines_ni_les_racontes():

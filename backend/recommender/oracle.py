@@ -86,7 +86,9 @@ BONUS_CANON = 0.035   # léger : le canon nuance le classement, il ne le dicte p
 _HOOK_PLAT = re.compile(
     r"box[- ]office|recettes|a rapport[ée]|dollars|entrées en france"
     r"|budget|millions? \$|grossed|prix du ticket|surcoût"
-    r"|critique (?:très )?mitigée|est (?:également )?visés? par la plainte", re.I)
+    r"|critique (?:très )?mitigée|est (?:également )?visés? par la plainte"
+    r"|acquiert (?:ainsi )?les droits|droits de distribution|la plateforme devance"
+    r"|studio (?:a )?(?:acquis|rachet)|accord (?:de|avec) (?:distribution|netflix)", re.I)
 
 # Le projet est en français. Un paragraphe anglais au milieu d'une carte casse la
 # lecture — l'extracteur bascule sur l'anglais quand la page FR est maigre (~19 % des
@@ -332,24 +334,42 @@ _RE_SUITE = re.compile(
 _TITRES = {(m.get("title") or "").strip().lower() for m in _movies}
 
 
-def _est_suite(film):
-    """Repère les suites/volets. Proposer « Scream VI » ou « Sicario: Day of the
-    Soldado » à quelqu'un qui n'a pas vu les précédents est une faute produit.
+def _base_de(film):
+    """Si le film est une suite, renvoie le titre du volet dont il découle (sinon None).
 
-    Deux détections :
-    1. les marqueurs explicites (chiffres romains/arabes finaux, « Part », « Vol. ») —
+    Trois détections :
+    1. marqueurs explicites (chiffres romains/arabes finaux, « Part », « Vol. ») —
        ancrés en FIN de titre, sinon « X-Men » ou « 1917 » sautent à tort ;
-    2. les suites NOMMÉES (« Sicario: Day of the Soldado ») : si le segment avant les
-       deux-points est lui-même un film du catalogue, c'est un volet ultérieur.
+    2. suites nommées avec le titre de base AVANT les deux-points
+       (« Sicario: Day of the Soldado ») ;
+    3. titre de base APRÈS les deux-points (« Glass Onion: A Knives Out Mystery »
+       découle de « Knives Out ») — on cherche tout titre du catalogue contenu dans
+       celui-ci, ≥ 8 caractères pour éviter les faux positifs des titres courts.
     """
     t = (film.get("title") or "").strip()
-    if _RE_SUITE.search(t):
-        return True
+    bas = t.lower()
     if ":" in t:
         base = t.split(":", 1)[0].strip().lower()
-        if len(base) >= 3 and base in _TITRES and base != t.lower():
-            return True
-    return False
+        if len(base) >= 3 and base in _TITRES and base != bas:
+            return base
+    for autre in _TITRES:
+        if len(autre) >= 8 and autre != bas and autre in bas:
+            return autre
+    if _RE_SUITE.search(t):
+        return ""          # suite certaine, base inconnue du catalogue
+    return None
+
+
+def _est_suite(film, vus_titres=None):
+    """Faut-il écarter ce film ? Une suite n'est un problème QUE si tu n'as pas vu la
+    base : proposer « Blade Runner 2049 » à qui a vu « Blade Runner » est légitime,
+    à qui ne l'a pas vu c'est une faute produit. La règle est donc conditionnelle."""
+    base = _base_de(film)
+    if base is None:
+        return False
+    if base and vus_titres and base in vus_titres:
+        return False       # tu as vu la base : la suite redevient recommandable
+    return True
 
 
 # --- Fabrique d'arguments -----------------------------------------------------------
@@ -565,6 +585,12 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
         if i in _ID2IDX:
             dispo[_ID2IDX[i]] = False
 
+    # titres des films que tu as vus : une suite dont tu connais la base reste valide
+    vus_titres = set()
+    for i in list(seed_ids or []) + [a.get("film_id") for a in (aretes or [])]:
+        if i in _ID2IDX:
+            vus_titres.add((_movies[_ID2IDX[i]].get("title") or "").strip().lower())
+
     # les films de référence servent à FABRIQUER l'argument (le lien concret)
     ref_idx = [_ID2IDX[i] for i in (seed_ids or []) if i in _ID2IDX]
     ref_idx += [_ID2IDX[a["film_id"]] for a in (aretes or [])
@@ -594,7 +620,7 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES, s
                 bande = libre
 
         # pas de suites orphelines (« Vol. II » sans le I)
-        sans_suite = [int(i) for i in bande if not _est_suite(_movies[i])]
+        sans_suite = [int(i) for i in bande if not _est_suite(_movies[i], vus_titres)]
         if sans_suite:
             bande = np.array(sans_suite)
 
