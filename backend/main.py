@@ -7,9 +7,12 @@ Expose le moteur de reco :
 Lancer (depuis backend/, venv activé) :
     uvicorn main:app --reload      # http://127.0.0.1:8000  (docs : /docs)
 """
+import difflib
 import json
 import os
 import random
+import re
+import unicodedata
 import urllib.request
 
 import numpy as np
@@ -18,6 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from recommender.recommend import recommend, _movies, _E, _votes, _blocked
+from recommender.oracle import tirage
+from recommender import aretes
 
 app = FastAPI(title="MORDU API")
 
@@ -30,7 +35,8 @@ app.add_middleware(
 )
 
 # champs compacts renvoyés pour le catalogue (le front n'a pas besoin de tout)
-_CATALOG_FIELDS = ("id", "title", "year", "genres", "poster_url", "vote_average")
+_CATALOG_FIELDS = ("id", "title", "year", "genres", "poster_url", "poster_path",
+                   "vote_average")
 
 # ids des films exclus (langue/genre bloqués, ex. cinéma indien) — voir recommend.py
 _BLOCKED_IDS = {_movies[i]["id"] for i in range(len(_movies)) if _blocked[i]}
@@ -54,13 +60,38 @@ def health():
     return {"status": "ok", "films": len(_movies)}
 
 
+def _norm(s):
+    """Titre comparable : sans accents, sans ponctuation, en minuscules."""
+    s = unicodedata.normalize("NFD", (s or "").lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
 @app.get("/api/movies")
 def get_movies(limit: int = 60, search: str | None = None):
-    """Catalogue. `search` filtre par titre ; sinon on renvoie les plus populaires."""
+    """Catalogue. `search` filtre par titre ; sinon on renvoie les plus populaires.
+
+    Le filtre par sous-chaîne seul rate les titres stylisés : chercher « seven » ne
+    trouvait pas « Se7en ». On complète donc par un repli FLOU (difflib) — sinon un
+    film que l'utilisateur a en tête reste introuvable, ce qui est rédhibitoire pour
+    l'onboarding.
+    """
     items = [m for m in _movies if m["id"] not in _BLOCKED_IDS]
     if search:
-        s = search.lower()
-        items = [m for m in items if s in (m.get("title") or "").lower()]
+        s = _norm(search)
+        exacts = [m for m in items if s in _norm(m.get("title"))]
+        if len(exacts) < limit:
+            vus = {m["id"] for m in exacts}
+            scores = []
+            for m in items:
+                if m["id"] in vus:
+                    continue
+                r = difflib.SequenceMatcher(None, s, _norm(m.get("title"))).ratio()
+                if r >= 0.72:
+                    scores.append((r, m))
+            scores.sort(key=lambda x: -x[0])
+            exacts += [m for _, m in scores[: limit - len(exacts)]]
+        items = exacts
     items = sorted(items, key=lambda m: m.get("popularity") or 0, reverse=True)[:limit]
     return [_compact(m) for m in items]
 
@@ -161,3 +192,86 @@ class RecoRequest(BaseModel):
 def api_recommend(req: RecoRequest):
     """Reco qui apprend de tes choix : films proches de tes aimés, loin de tes rejetés."""
     return recommend(req.liked_ids, req.disliked_ids, req.k)
+
+
+# =====================================================================================
+# L'ORACLE — cf. MANIFESTE.md. Trois cartes, trois axes, une serrure.
+# =====================================================================================
+
+class ChoixRequest(BaseModel):
+    film_id: int
+    titre: str | None = None
+    registre: str | None = None
+
+
+class RessentiRequest(BaseModel):
+    film_id: int
+    texte: str
+    titre: str | None = None
+    registre: str | None = None
+
+
+class GrainesRequest(BaseModel):
+    ids: list[int]
+
+
+@app.get("/api/oracle")
+def api_oracle(seed: int | None = None):
+    """Les trois cartes du soir.
+
+    SERRURE : si un film a été choisi mais pas encore raconté, on ne tire pas. Le
+    ressenti est le ticket du tirage suivant (MANIFESTE §3). On ne punit que le silence.
+    """
+    attente = aretes.en_attente()
+    if attente:
+        return {"bloque": True, "en_attente": attente,
+                "message": "Raconte-moi le précédent, et je te ressers."}
+
+    ars = aretes.toutes()
+    seeds = aretes.graines()
+    if not seeds and not ars:
+        return {"bloque": False, "cartes": [], "besoin_onboarding": True,
+                "message": "Donne-moi trois films que tu as adorés."}
+
+    cartes = tirage(seed_ids=seeds, aretes=ars,
+                    exclure=list(aretes.films_racontes()), seed=seed)
+    return {"bloque": False, "cartes": cartes, "arêtes": len(ars)}
+
+
+@app.post("/api/choix")
+def api_choix(req: ChoixRequest):
+    """« Ce soir, c'est celui-là. » Arme la serrure — les non-choisis ne sont PAS
+    des rejets (MANIFESTE §3 : jamais en disliked_ids)."""
+    aretes.poser_choix(req.film_id, req.titre, req.registre)
+    return {"ok": True, "en_attente": aretes.en_attente()}
+
+
+@app.post("/api/ressenti")
+def api_ressenti(req: RessentiRequest):
+    """La serrure : une arête (toi, film, texte, date). Libère le tirage suivant."""
+    texte = (req.texte or "").strip()
+    if len(texte) < 3:
+        return Response(status_code=400, content=b"ressenti vide")
+    a = aretes.ajouter(req.film_id, texte, req.titre, req.registre)
+    aretes.liberer()
+    return {"ok": True, "arete": a, "total": len(aretes.toutes())}
+
+
+@app.get("/api/aretes")
+def api_aretes():
+    """Toutes tes arêtes — la matière première, brute, jamais agrégée à l'écriture."""
+    return aretes.toutes()
+
+
+@app.post("/api/graines")
+def api_graines(req: GrainesRequest):
+    """Onboarding : les films-graines (cold start, cf. MANIFESTE §9)."""
+    aretes.poser_graines(req.ids)
+    return {"ok": True, "graines": aretes.graines()}
+
+
+@app.get("/api/etat")
+def api_etat():
+    ars = aretes.toutes()
+    return {"graines": aretes.graines(), "aretes": len(ars),
+            "en_attente": aretes.en_attente()}
