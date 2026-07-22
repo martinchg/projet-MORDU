@@ -92,7 +92,8 @@ et lequel des tiens l'a allumée.</span></p>
     </div>
     <div class="quand"><span id="ou">—</span><span id="cnt"></span></div>
     <div class="legende">
-      <span><i style="background:#12141A"></i>aucun film</span>
+      <span><i style="background:#111317"></i>aucun film</span>
+      <span><i style="background:#0A0B0E;width:4px;height:4px"></i>un film du catalogue</span>
       <span><i id="lg-froid"></i>loin de ton goût</span>
       <span><i id="lg-socle"></i>proche de ton goût</span>
       <span><i id="lg-vieux" style="border-radius:50%"></i>un film que tu as raconté</span>
@@ -150,77 +151,80 @@ Promise.all([
   $("lg-socle").style.background = rgb(PAL[6]);
   $("lg-vieux").style.background = rgb(PAL[8]);
 
-  // --- LE RELIEF, LISSE ------------------------------------------------------------
-  // On peint le champ sur une grille 48x32 hors écran, puis on l'étire en INTERPOLANT.
-  // C'est ce qui transforme un damier illisible en carte de relief : le champ est
-  // continu par nature (corrélation mesurée entre cellules voisines : 0,557), le rendre
-  // en blocs durs contredisait sa propre nature.
-  const ECH = 20;                       // 48x32 -> 960x640
-  cv.width = W * ECH; cv.height = H * ECH;
+  // --- TROIS COUCHES ----------------------------------------------------------------
+  //  1. LE RELIEF, continu et lissé : l'affinité de chaque endroit avec ton goût.
+  //  2. LES 6000 FILMS, un par un. C'est ça, la densité — la première version les avait
+  //     remplacés par 1536 moyennes, soit deux ordres de grandeur d'information en moins.
+  //  3. TES FILMS et les noms de lieux, nets, par-dessus.
+  const LG = 1180, HT = Math.round(LG * H / W);
+  cv.width = LG; cv.height = HT;
+
   const bas = document.createElement("canvas");
-  bas.width = W; bas.height = H;
-  const bctx = bas.getContext("2d");
+  bas.width = A.relief_l; bas.height = A.relief_h;
   {
-    const im = bctx.createImageData(W, H), d = im.data;
+    const bctx = bas.getContext("2d");
+    const im = bctx.createImageData(bas.width, bas.height), d = im.data;
     A.socle.forEach((v,i)=>{
-      const c = v===0 ? [18,20,24] : PAL[v];   // 0 : aucun film. Le vide n'est pas une opinion.
+      const c = v===0 ? [17,19,23] : PAL[v];   // 0 : personne alentour. Le vide est réel.
       d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
     });
     bctx.putImageData(im,0,0);
   }
 
+  const P = A.points;
   function peindre(jusqu){
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.clearRect(0,0,cv.width,cv.height);
-    ctx.drawImage(bas, 0, 0, cv.width, cv.height);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0,0,LG,HT);
+    ctx.drawImage(bas, 0, 0, LG, HT);
 
-    // --- LES NOMS DE LIEUX. Sans eux la carte est un joli nuage que personne ne peut
-    //     lire — c'était le reproche exact fait au glyphe, et l'atlas le répétait. Les
-    //     territoires étaient déjà nommés par ce qui les DISTINGUE (lift x IDF) ; ils
-    //     n'étaient affichés nulle part.
+    // 2. LES FILMS, un point chacun. Leur rôle est la DENSITÉ, pas une seconde couleur :
+    //    le relief encode déjà l'affinité, la réencoder sur les points les faisait
+    //    disparaître dans les zones claires (même teinte que leur fond). Un seul encre
+    //    sombre, uniforme : le grain se voit partout, et une variable = un encodage.
+    ctx.fillStyle = "rgba(10,11,14,.42)";
+    for(let i=0;i<P.x.length;i++){
+      ctx.fillRect(P.x[i]*LG - 1.1, (1-P.y[i])*HT - 1.1, 2.2, 2.2);
+    }
+
+    // 3a. LES NOMS DE LIEUX. Sans eux, la carte est un nuage que personne ne lit — le
+    //     reproche exact fait au glyphe. carte.py les nomme déjà par ce qui les DISTINGUE.
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "600 15px -apple-system, Helvetica Neue, Arial, sans-serif";
+    ctx.font = "600 14px -apple-system, Helvetica Neue, Arial, sans-serif";
     const poses = [];
-    // les points de tes films d'abord, pour qu'un toponyme ne vienne jamais se poser
-    // dessus : c'est TOI qui prime sur la géographie
-    ordre.slice(0, jusqu).forEach(k=>{
+    ordre.slice(0, jusqu).forEach(k=>{                 // tes films d'abord : tu primes
       const c = A.cellules[k];
-      poses.push({x:(c.c % W + 0.5)*ECH, y:(Math.floor(c.c / W) + 0.5)*ECH, l:170});
+      poses.push({x:(c.c % W + 0.5)/W*LG, y:(Math.floor(c.c / W) + 0.5)/H*HT, l:160});
     });
     (A.territoires||[]).forEach(t=>{
       const mots = t.nom.split(" · ");
       const larg = Math.max(...mots.map(m=>ctx.measureText(m).width));
-      // on rentre le toponyme dans le cadre : un nom coupé au bord ne se lit pas
-      const marge = larg/2 + 10;
-      const x = Math.min(Math.max(t.x*cv.width, marge), cv.width - marge);
-      const y = Math.min(Math.max((1-t.y)*cv.height, 26), cv.height - 26 - (mots.length-1)*17);
-      if(poses.some(p=>Math.abs(p.x-x) < (p.l||larg/2+90) && Math.abs(p.y-y) < 34)) return;
-      poses.push({x, y, l:larg/2+90});
+      const marge = larg/2 + 8;
+      const x = Math.min(Math.max(t.x*LG, marge), LG - marge);
+      const y = Math.min(Math.max((1-t.y)*HT, 24), HT - 24 - (mots.length-1)*16);
+      if(poses.some(q=>Math.abs(q.x-x) < (q.l||larg/2+80) && Math.abs(q.y-y) < 32)) return;
+      poses.push({x, y, l:larg/2+80});
       mots.forEach((m,k)=>{
-        const yy = y + (k - (mots.length-1)/2)*17;
-        ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,9,11,.85)";
-        ctx.strokeText(m, x, yy);                       // liseré : lisible sur tout fond
-        ctx.fillStyle = "rgba(237,235,226,.80)";
+        const yy = y + (k - (mots.length-1)/2)*16;
+        ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(8,9,11,.9)";
+        ctx.strokeText(m, x, yy);
+        ctx.fillStyle = "rgba(237,235,226,.78)";
         ctx.fillText(m, x, yy);
       });
     });
 
-    // --- TES FILMS. Nets, discrets, par-dessus. Ce sont des faits, pas un champ.
+    // 3b. TES FILMS. Des faits discrets : nets, nommés, jamais flous.
     ordre.slice(0, jusqu).forEach(k=>{
       const c = A.cellules[k];
-      const x = (c.c % W + 0.5)*ECH, y = (Math.floor(c.c / W) + 0.5)*ECH;
+      const x = (c.c % W + 0.5)/W*LG, y = (Math.floor(c.c / W) + 0.5)/H*HT;
       const col = c.braise ? "#E82E28" : rgb(PAL[8]);
-      ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fillStyle = col; ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,9,11,.9)"; ctx.stroke();
-      // le titre du film, à côté du point : c'est ce qui rend la carte immédiatement
-      // lisible sans rien tapoter
-      ctx.font = "600 14px -apple-system, Helvetica Neue, Arial, sans-serif";
-      ctx.textAlign = x > cv.width*0.72 ? "right" : "left";
-      const dx = x > cv.width*0.72 ? -16 : 16;
-      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,9,11,.9)";
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, 7); ctx.fillStyle = col; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(8,9,11,.92)"; ctx.stroke();
+      ctx.font = "600 13.5px -apple-system, Helvetica Neue, Arial, sans-serif";
+      ctx.textAlign = x > LG*0.74 ? "right" : "left";
+      const dx = x > LG*0.74 ? -13 : 13;
+      ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(8,9,11,.92)";
       ctx.strokeText(c.cause.titre, x+dx, y);
-      ctx.fillStyle = c.braise ? "#F5A9A5" : "#EDEBE2";
+      ctx.fillStyle = c.braise ? "#F7B3AF" : "#EDEBE2";
       ctx.fillText(c.cause.titre, x+dx, y);
       ctx.textAlign = "center";
     });

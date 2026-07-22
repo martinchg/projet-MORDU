@@ -432,8 +432,16 @@ def test_atlas_chaque_pixel_a_une_cause():
     d = A.atlas(seeds, [])
     check(f"le continent existe dès le premier jour ({d['cellules_pleines']} cellules)",
           d["cellules_pleines"] > 500, str(d["cellules_pleines"]))
-    check("le socle couvre toute la grille",
-          len(d["socle"]) == A.LARGEUR * A.HAUTEUR, str(len(d["socle"])))
+    # LE RELIEF a sa PROPRE grille, plus fine que celle des cellules cliquables. Les
+    # confondre était l'erreur de la v1 : une cellule cliquable doit contenir une poignée
+    # de films listables, une surface continue doit être… continue. 132x88 contre 48x32.
+    check("le relief a sa grille fine",
+          len(d["socle"]) == d["relief_l"] * d["relief_h"], str(len(d["socle"])))
+    check("… plus fine que les cellules cliquables",
+          d["relief_l"] * d["relief_h"] > A.LARGEUR * A.HAUTEUR)
+    check(f"les 6000 films sont là, un par un ({len(d['points']['x'])})",
+          len(d["points"]["x"]) == len(d["points"]["y"]) == 6000,
+          str(len(d["points"]["x"])))
     check("le socle laisse de l'océan", min(d["socle"]) == 0)
     # LE RELIEF occupe les paliers 1 à 6 (0 = aucun film) ; les endroits où tu es allé
     # occupent 7 à 10. Sans cette séparation stricte, une terre connue et ancienne se

@@ -87,17 +87,23 @@ _PLEINES = _densite()
 _PAR_CELL = [np.where(_CELL == c)[0] for c in range(LARGEUR * HAUTEUR)]
 
 
+# Grille FINE, uniquement pour le rendu du relief. Elle n'a rien à voir avec les cellules
+# cliquables (48x32) : celles-ci doivent contenir une poignée de films listables, celui-là
+# doit être une surface continue. Confondre les deux, c'était rendre un champ en damier.
+FIN_L, FIN_H = 132, 88
+
+
 def _relief(p):
-    """LE RELIEF — l'affinité de chaque endroit du cinéma avec TON goût.
+    """LE RELIEF — l'affinité de chaque endroit du cinéma avec TON goût, en continu.
 
-    C'est ce qui manquait, et c'est ce qui rend la carte dense au lieu de vide. Avant,
-    l'atlas n'affichait que les cellules touchées : 5 taches au début, 40 après un an —
-    2,5 % de la grille. Une carte au trésor sans carte.
+    Estimateur à noyau (Nadaraya-Watson) : on cumule les affinités des 6000 films dans
+    une grille fine, on floute numérateur ET dénominateur avec le même noyau gaussien,
+    puis on divise. Ça donne une surface lisse ET des côtes vraies — le vide reste du
+    vide, parce que le dénominateur y est nul.
 
-    Ici les 1086 cellules habitées portent toutes une valeur : `cos(ton profil, le centre
-    de la cellule)`. Autrement dit, on ne montre plus seulement où tu es allé, on montre
-    **à quoi ressemble le monde vu de ta position**. C'est exactement le calcul que fait
-    l'oracle pour tirer ses cartes, rendu visible — donc rien de neuf n'est affirmé.
+    PREMIÈRE VERSION JETÉE : elle moyennait l'affinité par cellule de 48x32 puis étirait
+    l'image. Résultat, moins d'information que l'ancienne carte (qui montrait les 6000
+    films un par un) ET plus flou. Une régression sur les deux tableaux.
 
     Trois choses vérifiées avant de l'afficher :
 
@@ -116,20 +122,45 @@ def _relief(p):
     if p is None:
         return None
     sims = _E @ p
-    aff = np.full(LARGEUR * HAUTEUR, np.nan)
-    for c in range(LARGEUR * HAUTEUR):
-        idx = _PAR_CELL[c]
-        if len(idx):
-            aff[c] = sims[idx].mean()
-    ok = ~np.isnan(aff)
+    xi = np.clip((_N[:, 0] * FIN_L).astype(int), 0, FIN_L - 1)
+    yi = np.clip((_N[:, 1] * FIN_H).astype(int), 0, FIN_H - 1)
+    plat = yi * FIN_L + xi
+    num = np.bincount(plat, weights=sims, minlength=FIN_L * FIN_H).reshape(FIN_H, FIN_L)
+    den = np.bincount(plat, minlength=FIN_L * FIN_H).astype(float).reshape(FIN_H, FIN_L)
+    try:
+        from scipy.ndimage import gaussian_filter
+        num, den2 = gaussian_filter(num, 1.6), gaussian_filter(den, 1.6)
+    except Exception:
+        den2 = den
+    vide = den2 < 0.05                      # personne dans le voisinage : c'est le vide
+    aff = np.divide(num, np.maximum(den2, 1e-9))
+    ok = ~vide
     if not ok.any():
         return None
-    lo, hi = np.nanpercentile(aff, 3), np.nanpercentile(aff, 97)
+    lo, hi = np.percentile(aff[ok], 3), np.percentile(aff[ok], 97)
     q = np.clip((aff - lo) / max(hi - lo, 1e-9), 0, 1)
-    # paliers 1 à 6 : on laisse 0 au vide et 7 à 10 aux endroits où tu es allé
-    out = np.zeros(LARGEUR * HAUTEUR, dtype=int)
+    out = np.zeros(aff.shape, dtype=int)
+    # 1 à 6 : le relief. 0 reste au vide, 7 à 10 aux endroits où tu es allé.
     out[ok] = 1 + np.floor(q[ok] * 5 + 0.5).astype(int)
-    return out
+    return out.flatten()
+
+
+def _points(p):
+    """LES 6000 FILMS, un par un. C'est ÇA, la densité.
+
+    L'ancienne carte du goût les affichait tous ; l'atlas les avait remplacés par 1536
+    moyennes. Martin : « c'est beaucoup moins dense » — et c'était vrai, deux ordres de
+    grandeur d'information en moins. Ils reviennent, en compact : trois tableaux
+    parallèles plutôt que 6000 objets JSON.
+    """
+    sims = _E @ p if p is not None else np.zeros(len(_movies))
+    lo, hi = np.percentile(sims, 3), np.percentile(sims, 97)
+    q = np.clip((sims - lo) / max(hi - lo, 1e-9), 0, 1)
+    return {
+        "x": [round(float(v), 4) for v in _N[:, 0]],
+        "y": [round(float(v), 4) for v in _N[:, 1]],
+        "a": [int(v) for v in np.floor(q * 6 + 0.5)],     # 0..6, l'affinité du film LUI-MÊME
+    }
 
 
 def _phares(cell, k=3):
@@ -227,9 +258,8 @@ def atlas(graines, aretes):
             "braise": bool(age is not None and age < DEMI_VIE_JOURS),
         })
 
-    relief = _relief(profil(graines, ars))
-    if relief is None:
-        relief = np.where(_PLEINES, 1, 0)
+    p = profil(graines, ars)
+    relief = _relief(p)
 
     return {
         "largeur": LARGEUR, "hauteur": HAUTEUR, "niveaux": NIVEAUX,
@@ -237,7 +267,9 @@ def atlas(graines, aretes):
         # tout le monde et n'affirmait rien ; il ne montrait donc rien non plus. Le
         # relief, lui, est ton point de vue sur le catalogue — et il bouge quand ton
         # goût bouge, et seulement quand il bouge (mesuré : 0,0 % sur le témoin).
-        "socle": [int(x) for x in relief],
+        "socle": None if relief is None else [int(x) for x in relief],
+        "relief_l": FIN_L, "relief_h": FIN_H,
+        "points": _points(p),
         "cellules": cellules,
         "cellules_pleines": int(_PLEINES.sum()),
         "films": len(_movies),
