@@ -116,19 +116,15 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
      0,663 — contre 0,794 pour un inconnu. **83 % du chemin vers quelqu'un d'autre.**
      Une signature doit être stable pour la même personne.
 
-     Remplacée par **L'ATLAS** (`atlas.py`), et le renversement tient en une phrase :
-     *au lieu de peindre TON vecteur dans une base arbitraire, on peint LE CATALOGUE
-     dans une base fixe et on allume ce que tu as touché.* Sous rotation, les cosinus
-     sont conservés, donc les voisinages, donc **le contenu de chaque cellule est
-     invariant**. On tapote n'importe quel pixel et il rend de vrais titres, la date, et
-     la phrase que tu avais écrite. Ce qui date de moins d'un mois brûle en rouge ; ce
-     qui est ancien refroidit sans jamais s'effacer — c'est *ça*, « comment tu as évolué »,
-     et c'est vérifiable case par case.
+     **Elle n'a PAS été remplacée, et c'est la bonne réponse.** L'atlas construit pour
+     prendre sa place a été enterré le jour même (§8) : il était honnête et inutile.
+     Ce qui reste sur « Mon profil » est ce qui se LIT — le portrait en une phrase, tes
+     mots, tes arêtes brutes — plus **la carte du goût**, qui, elle, n'a jamais rien
+     prétendu de plus que ce qu'elle est.
 
-     Deux règles dures, tenues par des tests : **aucun pixel sans cause** (pas de halo,
-     mesuré à 5 → 50 pixels selon son rayon à goût strictement fixe) et **aucune légende
-     statistique** (« ton plus gros amas est X » sort 100 fois sur 100 sur des historiques
-     tirés au hasard). Une image sans légende est le prix, et il est correct.
+     Le désir derrière l'empreinte — *voir comment j'ai évolué* — reste donc SANS RÉPONSE,
+     et on l'assume. Mieux vaut un manque nommé qu'un objet qui le comble en trompant.
+     À rouvrir vers trente ressentis, quand il y aura vraiment quelque chose à voir.
 
      > **La règle qui en sort, et qui vaut pour tout le produit :** toute représentation
      > du goût doit pouvoir être reliée à un film, une scène ou une phrase — jamais
