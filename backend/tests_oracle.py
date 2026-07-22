@@ -433,6 +433,69 @@ def test_serrure_preserve_les_graines():
         aretes.ecrire_etat(sauve)
 
 
+def _histoire(mots, registres, jours):
+    """Fabrique une histoire d'arêtes datée. Les films sont fixes : ce qu'on teste ici est
+    la MESURE de la dérive, pas le catalogue."""
+    ids = [(372058, "Your Name."), (524, "Casino"), (949, "Heat"),
+           (244786, "Whiplash"), (496243, "Parasite"), (680, "Pulp Fiction")]
+    return [{"film_id": ids[i % len(ids)][0], "titre": ids[i % len(ids)][1],
+             "texte": mots[i], "valence": 0.7, "registre": registres[i],
+             "date": f"2026-07-{jours[i]:02d}T10:00:00+00:00"}
+            for i in range(len(mots))]
+
+
+def test_derive_ne_raconte_pas_de_salades():
+    """L'évolution est le cœur de l'empreinte — donc c'est là qu'inventer coûte le plus.
+
+    Trois refus verrouillés : sous 3 arêtes on ne conclut pas, une salve écrite d'un bloc
+    est signalée comme telle, et une dérive lexicale sous le seuil de bruit reste muette.
+    """
+    from recommender.derive import derive
+    seeds = ids_from_titles(GRAINES)
+
+    d = derive(seeds, _histoire(["beau", "long"], ["connu", "pari"], [1, 2]),
+               avec_empreintes=False)
+    check("2 arêtes : pas de verdict", d["verdict"] is None and not d["assez"])
+    check("2 arêtes : on dit ce qui manque", d["manque"] == 1, str(d["manque"]))
+
+    meme_jour = _histoire(["beau", "long", "lent", "sombre"],
+                          ["connu"] * 4, [1, 1, 1, 1])
+    for i, a in enumerate(meme_jour):
+        a["date"] = f"2026-07-01T1{i}:00:00+00:00"
+    ds = derive(seeds, meme_jour, avec_empreintes=False)
+    check("écrit d'un bloc = salve", ds["salve"] is True)
+    check("la salve est dite dans le verdict",
+          ds["verdict"] and "salve" in ds["verdict"], str(ds["verdict"]))
+
+    # dérive lexicale FRANCHE : image -> personnages
+    img = "les couleurs et la lumiere sont magnifiques, un cadrage sublime"
+    per = "le jeu des acteurs, l'interpretation et le casting portent le role"
+    dl = derive(seeds, _histoire([img, img, per, per], ["connu", "connu", "ecart", "pari"],
+                                 [1, 5, 12, 20]), avec_empreintes=False)
+    check("dérive d'attention détectée",
+          dl["attention"] and dl["attention"]["gagne"]
+          and dl["attention"]["gagne"]["cle"] == "personnages",
+          str(dl["attention"] and dl["attention"]["gagne"]))
+    check("l'axe abandonné est nommé",
+          dl["attention"]["perdu"] and dl["attention"]["perdu"]["cle"] == "image",
+          str(dl["attention"]["perdu"]))
+    check("audace en hausse mesurée", dl["audace"] and dl["audace"]["delta"] > 0,
+          str(dl["audace"]))
+    check("le verdict contracte l'article",
+          "parlais de l'image" in (dl["verdict"] or ""), str(dl["verdict"]))
+    check("étalé sur 20 jours : pas une salve", dl["salve"] is False)
+
+    # Inégalité triangulaire sur la sphère : la somme des pas ne peut pas être plus courte
+    # que le vol d'oiseau. C'est ce qui rend la sinuosité interprétable — et NON, le cap
+    # n'est pas monotone : revenir sur ses pas le fait redescendre, c'est même tout
+    # l'intérêt de la mesure.
+    caps = [e["cap"] for e in dl["etapes"]]
+    check("le cap part de zéro", caps[0] == 0.0, str(caps))
+    check("chemin >= distance à vol d'oiseau", dl["chemin"] >= dl["net"] - 1e-6,
+          f"{dl['chemin']} < {dl['net']}")
+    check("sinuosité >= 1", dl["sinuosite"] >= 1.0 - 1e-6, str(dl["sinuosite"]))
+
+
 if __name__ == "__main__":
     for f in (test_trois_axes_orthogonaux, test_argument_toujours_ancre,
               test_argument_en_francais, test_suites_ecartees,
@@ -442,6 +505,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_empreinte, test_carte_du_gout,
+              test_derive_ne_raconte_pas_de_salades,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()

@@ -28,7 +28,7 @@ from collections import Counter
 import numpy as np
 
 from .oracle import _IDF, _MOTIFS_BLOQUES, _MOTIFS_FR, _GENRE_FR, profil
-from .recommend import _E, _blocked, _movies, _votes
+from .recommend import _E, _ID2IDX, _blocked, _movies, _votes
 
 _CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "_carte.npz")
 N_VOISINS_CARTE = 40
@@ -110,6 +110,18 @@ def _nommer_territoires():
 
 
 _TERRITOIRES = _nommer_territoires()
+
+
+def territoire_de(film_id):
+    """Le territoire nommé où tombe un film, ou None s'il est dans le bruit.
+
+    HDBSCAN laisse volontairement des points non classés (label -1) : ce sont les films
+    isolés, et les forcer dans un cluster voisin inventerait une appartenance.
+    """
+    i = _ID2IDX.get(film_id)
+    if i is None:
+        return None
+    return _TERRITOIRES.get(int(_LABELS[i]))
 
 
 def carte(graines=None, aretes=None):

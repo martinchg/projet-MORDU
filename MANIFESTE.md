@@ -111,6 +111,32 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
    parle JAMAIS** : deux personnes peuvent adorer les mêmes films sans y regarder du
    tout la même chose. La phrase le dit explicitement.
 
+   **LA DÉRIVE — le troisième objet, et le seul qui vaille vraiment (22/07).** Martin :
+   « j'aime bien le principe de l'empreinte parce que ça dit qui tu es et comment tu as
+   ÉVOLUÉ dans le temps, si tu t'es adouci, grandi — c'est pour ça que j'aime le truc
+   dessin, parce que ça évolue ; alors que le portrait c'est un peu nul, pas original ».
+   Il a raison, et le diagnostic est net : **la signature et le portrait décrivent tous
+   les deux un INSTANTANÉ.** N'importe qui peut se voir écrire « tu regardes l'image ».
+   Personne ne peut se voir écrire SA trajectoire.
+
+   La dérive est donc l'objet central des trois, et elle ne coûte aucun stockage : les
+   arêtes sont horodatées et append-only (§4), donc l'histoire est déjà là. On rejoue le
+   profil sur chaque préfixe et on mesure ce qui a changé, sur quatre axes tirés
+   uniquement de l'existant :
+
+   | mesure | d'où elle sort | ce qu'elle dit |
+   |---|---|---|
+   | **cap** | angle entre le vecteur d'alors et celui d'aujourd'hui | de combien tu as tourné ; le chemin/vol d'oiseau dit si tu as zigzagué ou dérivé droit |
+   | **ouverture** | écart moyen entre ton centre et tes films | tu t'élargis ou tu te resserres — la réponse littérale à « je me suis ouvert ? » |
+   | **audace** | la bande (connu/écart/pari) où l'oracle avait rangé la carte que tu as choisie | est-ce que tu oses davantage |
+   | **attention** | tes mots BRUTS, première moitié contre seconde | ce que tu t'es mis à REGARDER (« tu parlais de l'image, tu parles des personnages ») |
+
+   **Trois refus, verrouillés par des tests.** Sous 3 arêtes : aucun verdict, on dit ce
+   qui manque. Tout écrit dans la même séance : c'est une *salve*, pas une trajectoire,
+   et c'est écrit noir sur blanc. Dérive lexicale sous 15 points de part : bruit
+   d'échantillonnage, on se tait. Une évolution inventée serait la pire trahison
+   possible du produit — c'est exactement le §7 appliqué à soi-même.
+
 Pas de jauges, pas de badges, pas de streaks. Le rythme de l'app est indexé sur ta vraie
 vie de spectateur — l'anti-Duolingo, assumé.
 

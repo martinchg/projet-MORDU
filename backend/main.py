@@ -25,7 +25,7 @@ from recommender.oracle import tirage
 from recommender import aretes
 from recommender import relecture
 from recommender.profil_vue import construire as construire_profil
-from recommender.profil_vue import evolution as construire_evolution
+from recommender.derive import derive as construire_derive
 from recommender.carte import carte as construire_carte
 
 app = FastAPI(title="MORDU API")
@@ -314,8 +314,10 @@ def api_profil():
 
 @app.get("/api/evolution")
 def api_evolution():
-    """L'empreinte à chaque état HISTORIQUE réel — ton histoire, pas une simulation."""
-    return construire_evolution(aretes.graines(), aretes.toutes())
+    """TA dérive : l'empreinte rejouée à chaque état historique réel, plus les quatre
+    mesures de ce qui a changé (cap, ouverture, audace, attention). Pas de simulation,
+    et un refus explicite de conclure sous 3 arêtes ou sur une seule séance."""
+    return construire_derive(aretes.graines(), aretes.toutes())
 
 
 @app.get("/api/carte")

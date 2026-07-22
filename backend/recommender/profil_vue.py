@@ -154,36 +154,6 @@ def empreinte(graines, aretes, largeur=24):
             "cellules": [int(x) for x in q.flatten()]}
 
 
-def evolution(graines, aretes):
-    """TON histoire réelle, pas une simulation.
-
-    Martin : « ce que j'aime dans l'empreinte c'est que ÇA ÉVOLUE — si tu t'es adouci,
-    grandi ». Or la page d'évolution SIMULAIT la suite : elle montrait une trajectoire
-    plausible, pas la sienne. Ici on recalcule l'empreinte à chaque état HISTORIQUE
-    réel, arête après arête, dans l'ordre des dates.
-
-    C'est possible sans rien stocker de nouveau : les arêtes sont horodatées et
-    append-only, donc l'histoire est déjà dans les données (MANIFESTE §4 — les profils
-    sont des vues recalculables).
-    """
-    ars = sorted(aretes or [], key=lambda a: a.get("date") or "")
-    etapes = []
-    for n in range(len(ars) + 1):
-        prefixe = ars[:n]
-        e = empreinte(graines, prefixe)
-        if e is None:
-            continue
-        etapes.append({
-            "n": n,
-            "date": prefixe[-1].get("date") if prefixe else None,
-            "titre": prefixe[-1].get("titre") if prefixe else None,
-            "empreinte": e,
-        })
-    return {"etapes": etapes, "aretes": len(ars),
-            # en dessous de 3 états on ne peut RIEN dire d'une évolution — on le dit
-            "assez_pour_parler": len(ars) >= 3}
-
-
 def construire(graines, aretes, palmares=None):
     """Agrège les arêtes en un portrait. Tout est recalculable : rien n'est stocké."""
     ids = list(graines or []) + [a["film_id"] for a in (aretes or [])]
