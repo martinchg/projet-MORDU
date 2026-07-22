@@ -114,7 +114,6 @@
     <a href="oracle.html">L'oracle</a>
     <a href="profil.html" aria-current="page">Mon profil</a>
     <a href="domaines.html">Domaines</a>
-    <a href="empreinte-evolution.html">Ton atlas</a>
   </nav>
   <h2 id="h"></h2>
   <p class="hint" id="intro"></p>
@@ -180,14 +179,24 @@ function barres(items, cle, val){
 
   vue.innerHTML=`
     <div id="muet"></div>
+    <h2 id="hc" style="margin-top:4px"></h2>
+    <p class="hint">Les 6000 films projetés depuis <b>384 dimensions</b> vers un plan
+    (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
+    les motifs <b>sur-représentés</b> dans chaque zone, pas les plus fréquents — « drame »
+    ne dit rien, « huis clos » nomme.</p>
     <div class="portrait apparait" id="portrait"></div>
-    <div class="bloc apparait" style="margin-bottom:16px">
-      <div class="lbl">Ton atlas — le cinéma vu depuis ta position</div>
-      <div class="emp">
-        <canvas id="emp" width="240" height="160"></canvas>
-        <div class="txt" id="emptxt"></div>
+    <div class="carte">
+      <canvas id="cv" width="1180" height="620"></canvas>
+      <div class="tip" id="tip"></div>
+      <div class="fiche" id="fiche"></div>
+      <div class="lg">
+        <span><i style="background:#E4130F"></i><b>tes films</b></span>
+        <span><i style="background:#D0B278"></i>proches de toi</span>
+        <span><i style="background:#34465C"></i>le reste du territoire</span>
+        <span><i style="background:#3FA45A"></i>ton centre de gravité</span>
       </div>
     </div>
+    <div class="terrs" id="terrs"></div>
 
     <h2 style="margin-top:30px" id="hd"></h2>
     <div class="grille">
@@ -307,50 +316,149 @@ function barres(items, cle, val){
   // barres, on le montre tel quel — le vecteur replié en grille et quantifié sur la
   // palette. Déterministe, et il SE RÉSOUT à mesure que tu écris : c'est le même
   // principe que les affiches, appliqué à toi.
-  // TON ATLAS — la vignette. L'empreinte qui était ici a été supprimée : elle peignait
-  // le vecteur dans une base ARBITRAIRE (une rotation orthogonale laissait le modèle
-  // rigoureusement identique et changeait 90 % de l'image). Ici on peint le CATALOGUE
-  // dans une base fixe et on allume ce qui a été touché — chaque pixel se tapote et
-  // rend de vrais titres. Détail et interaction sur la page dédiée.
-  try{
-    const A = await GET("/api/atlas");
-    const cv = document.getElementById("emp"), ctx = cv.getContext("2d");
-    const PAL = MORDU.PALETTE;
-    cv.width = A.largeur; cv.height = A.hauteur;
-    const im = ctx.createImageData(A.largeur, A.hauteur), d = im.data;
-    A.socle.forEach((v,i)=>{
-      const c = v===0 ? [22,24,28] : PAL[v];
-      d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
-    });
-    A.cellules.forEach(c=>{
-      const base = PAL[Math.min(PAL.length-3, c.palier)];
-      const col = c.braise ? [232,46,40] : base;
-      d[c.c*4]=col[0]; d[c.c*4+1]=col[1]; d[c.c*4+2]=col[2]; d[c.c*4+3]=255;
-    });
-    ctx.putImageData(im,0,0);
-    document.getElementById("emptxt").innerHTML=
-      `Le cinéma entier projeté sur un plan — <b>${A.cellules_pleines}</b> cases habitées
-       sur ${A.largeur*A.hauteur} — et les <b>${A.cellules.length}</b> où tu es allé.
-       Ce qui est rouge date de moins d'un mois.
-       <br><br>Chaque pixel contient de <b>vrais films</b> et sait lequel des tiens l'a
-       allumé. C'est ce qui le distingue de l'empreinte qu'il remplace : là-bas, la
-       position ne voulait rien dire — une rotation de l'espace laissait les
-       recommandations rigoureusement identiques et changeait 90 % de l'image.
-       <br><br><a href="empreinte-evolution.html" style="color:var(--red);font-size:12px">
-       explorer l'atlas →</a>`;
-  }catch(e){ document.getElementById("emptxt").textContent = "atlas indisponible"; }
-
-  // LA CARTE DU GOÛT A ÉTÉ RETIRÉE D'ICI (22/07). Remarque de Martin : « l'atlas
-  // ressemble trop au truc de mon profil » — et c'était exact : ce sont le MÊME objet.
-  // Les deux partent de la même projection PaCMAP (carte._N), rendue une fois en nuage
-  // de points ici et une fois en grille là-bas. Deux dessins pour une donnée, sur deux
-  // écrans : la duplication affaiblissait les deux.
-  //
-  // L'atlas gagne parce qu'il fait tout ce que faisait la carte — territoires nommés,
-  // inspection au clic, ta position — PLUS ce qu'elle ne faisait pas : le relief de ton
-  // goût sur les 1086 cellules habitées, la chronologie rejouable, et la trace datée du
-  // film qui a allumé chaque case. La vignette ci-dessus y mène.
+  // ---- LA CARTE ----
+  MORDU.resoudreTexte(document.getElementById("hc"),"La carte de ton goût",{duree:800});
   MORDU.resoudreTexte(document.getElementById("hd"),"Le détail",{duree:700,retard:200});
+  let C=null;
+  try{ C=await GET("/api/carte"); }catch(e){}
+  if(C){
+    const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+    const W=cv.width, H=cv.height, PAD=54, CELL=5;
+    const px=p=>PAD+p.x*(W-2*PAD), py=p=>PAD+(1-p.y)*(H-2*PAD);
+    // aligner sur une grille : c'est ce qui donne la matière « tramée » plutôt qu'un
+    // nuage de ronds lisses — la carte appartient au même monde que les affiches
+    const snap=v=>Math.round(v/CELL)*CELL;
+
+    function dessiner(surbrillance){
+      ctx.fillStyle="#07080A"; ctx.fillRect(0,0,W,H);
+      // 1. le territoire, en fond : une nappe de densité tramée
+      const occ=new Map();
+      C.points.forEach(p=>{
+        const x=snap(px(p)), y=snap(py(p)), c=`${x},${y}`;
+        occ.set(c,(occ.get(c)||0)+1);
+      });
+      occ.forEach((n,c)=>{
+        const [x,y]=c.split(",").map(Number);
+        const t=Math.min(1,n/3);
+        ctx.fillStyle=t>.66?"#2C3A4E":t>.33?"#222D3C":"#18202B";
+        ctx.fillRect(x,y,CELL-1,CELL-1);
+      });
+      // 1bis. BROUILLARD : les territoires où tu n'as jamais mis les pieds restent
+      //       dans la nuit. Ce qui reste éclairé, c'est ce que tu as parcouru — la
+      //       carte raconte alors ton exploration, pas seulement le catalogue.
+      const explores=new Set(C.territoires.filter(t=>t.tiens>0).map(t=>t.id));
+      if(explores.size){
+        C.points.filter(p=>p.z>=0 && !explores.has(p.z)).forEach(p=>{
+          ctx.fillStyle="rgba(7,8,10,.55)";
+          ctx.fillRect(snap(px(p))-1,snap(py(p))-1,CELL+1,CELL+1);
+        });
+      }
+
+      // 2. les proches, puis les tiens : l'ordre compte, tes films au-dessus de tout
+      C.points.filter(p=>p.k===1).forEach(p=>{
+        ctx.fillStyle="#D0B278"; ctx.fillRect(snap(px(p)),snap(py(p)),CELL-1,CELL-1); });
+      C.points.filter(p=>p.k===2).forEach(p=>{
+        const x=snap(px(p)),y=snap(py(p));
+        ctx.fillStyle="#E4130F"; ctx.fillRect(x-CELL,y-CELL,CELL*3-1,CELL*3-1);
+        ctx.fillStyle="#F5EFE3"; ctx.fillRect(x,y,CELL-1,CELL-1);
+      });
+      // 3. ton centre de gravité : une croix, pas un rond — ça se repère
+      if(C.centre){
+        const x=snap(PAD+C.centre[0]*(W-2*PAD)), y=snap(PAD+(1-C.centre[1])*(H-2*PAD));
+        ctx.fillStyle="#3FA45A";
+        ctx.fillRect(x-CELL*4,y,CELL*9,CELL-1); ctx.fillRect(x,y-CELL*4,CELL-1,CELL*9);
+      }
+      // 4. les noms de territoires : lisibles, donc jamais tramés.
+      //    Ils s'ÉVITENT (une étiquette qui en recouvre une autre les tue toutes les
+      //    deux) et restent dans le cadre — au bord, la carte tronquait les noms.
+      ctx.textAlign="center";
+      const poses=[];
+      const ordre=[...C.territoires].sort((a,b)=>
+        (b.tiens>0)-(a.tiens>0) || b.n-a.n);            // les tiens et les gros d'abord
+      ordre.forEach(t=>{
+        const mien=t.tiens>0, sur=surbrillance===t.id;
+        ctx.font=`${mien?"600 ":""}12px ui-monospace,SF Mono,Menlo,monospace`;
+        const txt=t.nom.length>34?t.nom.slice(0,33)+"…":t.nom;
+        const w=ctx.measureText(txt).width, h=17;
+        let x=PAD+t.x*(W-2*PAD), y=PAD+(1-t.y)*(H-2*PAD);
+        x=Math.min(Math.max(x,w/2+8), W-w/2-8);          // jamais hors cadre
+        y=Math.min(Math.max(y,h+4), H-26);
+        // on décale verticalement tant que ça chevauche un nom déjà posé
+        let dec=0, ok=false;
+        for(let essai=0; essai<9 && !ok; essai++){
+          dec = essai===0?0:(essai%2?1:-1)*Math.ceil(essai/2)*19;
+          const yy=y+dec;
+          ok = yy>h && yy<H-22 && !poses.some(r=>
+            Math.abs(r.x-x)<(r.w+w)/2+8 && Math.abs(r.y-yy)<h+3);
+        }
+        if(!ok && !mien) return;                          // on préfère cacher que superposer
+        y+=dec;
+        poses.push({x,y,w});
+        ctx.fillStyle="rgba(7,8,10,.86)"; ctx.fillRect(x-w/2-5,y-13,w+10,h);
+        ctx.fillStyle=sur?"#fff":(mien?"#E4130F":"#8E8E86");
+        ctx.fillText(txt,x,y);
+      });
+    }
+    dessiner(null);
+
+    // survol : retrouver le film le plus proche du curseur
+    const tip=document.getElementById("tip");
+    cv.addEventListener("mousemove",e=>{
+      const r=cv.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+      const mx=(e.clientX-r.left)*sx, my=(e.clientY-r.top)*sy;
+      let best=null,bd=1e9;
+      for(const p of C.points){
+        const d=(px(p)-mx)**2+(py(p)-my)**2;
+        if(d<bd){bd=d;best=p;}
+      }
+      if(best && bd<900){
+        tip.textContent=best.t; tip.classList.add("on");
+        tip.style.left=((px(best)/sx))+"px"; tip.style.top=((py(best)/sy))+"px";
+      } else tip.classList.remove("on");
+    });
+    cv.addEventListener("mouseleave",()=>tip.classList.remove("on"));
+
+    // CLIQUER un point : la carte devient explorable, pas seulement contemplative.
+    // C'est ce qui la fait passer d'une illustration à un instrument.
+    const fiche=document.getElementById("fiche");
+    cv.addEventListener("click",async e=>{
+      const r=cv.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+      const mx=(e.clientX-r.left)*sx, my=(e.clientY-r.top)*sy;
+      let best=null,bd=1e9;
+      for(const q of C.points){ const d=(px(q)-mx)**2+(py(q)-my)**2; if(d<bd){bd=d;best=q;} }
+      if(!best || bd>1600){ fiche.classList.remove("on"); return; }
+      const terr=C.territoires.find(t=>t.id===best.z);
+      let det=null;
+      try{ det=(await GET(`/api/movies?search=${encodeURIComponent(best.t)}&limit=1`))[0]; }catch(_){}
+      fiche.innerHTML=`<span class="x" id="fx">✕</span>
+        ${det&&det.poster_path?`<canvas></canvas>`:``}
+        <div class="t">${esc(best.t)}</div>
+        <div class="m">${det&&det.year?det.year+" · ":""}${det&&det.genres?det.genres.join(", "):""}</div>
+        <div class="m">${terr?"territoire : "+esc(terr.nom):"hors territoire (trop isolé)"}</div>
+        ${best.k===2?`<div class="m" style="color:var(--red)">↳ un de tes films</div>`:
+          best.k===1?`<div class="m" style="color:#D0B278">↳ proche de ton goût</div>`:``}`;
+      fiche.classList.add("on");
+      const fc=fiche.querySelector("canvas");
+      if(fc && det && det.poster_path){
+        const im=img(det.poster_path);
+        const go=()=>MORDU.tramer(fc,im,{net:1,temperature:MORDU.temperature(det),
+                                         w:200,h:300});
+        if(!im.complete) im.addEventListener("load",go,{once:true});
+        go();
+      }
+      fiche.querySelector("#fx").addEventListener("click",()=>fiche.classList.remove("on"));
+    });
+
+    document.getElementById("terrs").innerHTML=C.territoires.map(t=>
+      `<div class="terr apparait ${t.tiens?'mien':''}" data-id="${t.id}">
+        <div class="n">${esc(t.nom)}</div>
+        <div class="m">${t.n} films${t.tiens?` · ${t.tiens} à toi`:""}${t.affinite!==undefined?` · affinité ${t.affinite.toFixed(2)}`:""}</div>
+      </div>`).join("");
+    document.querySelectorAll(".terr").forEach(el=>{
+      el.addEventListener("mouseenter",()=>dessiner(+el.dataset.id));
+      el.addEventListener("mouseleave",()=>dessiner(null));
+    });
+  }
 
   const vs=document.getElementById("vois");
   vs.innerHTML=p.voisins.map(v=>`<div class="v"><canvas></canvas>

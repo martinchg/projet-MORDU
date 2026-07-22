@@ -416,108 +416,6 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
-def test_atlas_chaque_pixel_a_une_cause():
-    """L'atlas doit tenir exactement là où l'empreinte tombait.
-
-    Le glyphe peignait le vecteur dans une base ARBITRAIRE : une rotation orthogonale
-    laissait le modèle rigoureusement identique et changeait 90 % de l'image. L'atlas
-    peint le CATALOGUE dans une base fixe et allume ce qui a été touché — donc sous
-    rotation, les cosinus étant conservés, le CONTENU de chaque cellule est invariant.
-    C'est ça qui achète le droit de dire « cette tache, c'est ce coin du cinéma ».
-    """
-    import numpy as np
-    from recommender import atlas as A
-    seeds = ids_from_titles(GRAINES)
-
-    d = A.atlas(seeds, [])
-    check(f"le continent existe dès le premier jour ({d['cellules_pleines']} cellules)",
-          d["cellules_pleines"] > 500, str(d["cellules_pleines"]))
-    # LE RELIEF a sa PROPRE grille, plus fine que celle des cellules cliquables. Les
-    # confondre était l'erreur de la v1 : une cellule cliquable doit contenir une poignée
-    # de films listables, une surface continue doit être… continue. 132x88 contre 48x32.
-    check("le relief a sa grille fine",
-          len(d["socle"]) == d["relief_l"] * d["relief_h"], str(len(d["socle"])))
-    check("… plus fine que les cellules cliquables",
-          d["relief_l"] * d["relief_h"] > A.LARGEUR * A.HAUTEUR)
-    check(f"les 6000 films sont là, un par un ({len(d['points']['x'])})",
-          len(d["points"]["x"]) == len(d["points"]["y"]) == 6000,
-          str(len(d["points"]["x"])))
-    check("le socle laisse de l'océan", min(d["socle"]) == 0)
-    # LE RELIEF occupe les paliers 1 à 6 (0 = aucun film) ; les endroits où tu es allé
-    # occupent 7 à 10. Sans cette séparation stricte, une terre connue et ancienne se
-    # noierait dans le relief et deviendrait indiscernable d'un endroit jamais visité.
-    check("le relief reste SOUS les terres connues", max(d["socle"]) <= 6,
-          str(max(d["socle"])))
-
-    # RÈGLE DURE 1 : aucun pixel sans cause
-    tiens = set(seeds)
-    for c in d["cellules"]:
-        check(f"cellule {c['c']} : une cause nommée",
-              c["cause"] and c["cause"]["film_id"] in tiens, str(c.get("cause")))
-        check(f"cellule {c['c']} : un palier au-dessus du relief", c["palier"] >= 7,
-              str(c["palier"]))
-    check(f"pas plus de cellules que de films touchés ({len(d['cellules'])})",
-          len(d["cellules"]) <= len(seeds))
-
-    # RÈGLE DURE 2 : chaque cellule allumée est LISIBLE — on peut la tapoter
-    check("chaque cellule nomme des films réels",
-          all(c["phares"] for c in d["cellules"]))
-
-    # INVARIANCE : le contenu d'une cellule ne dépend pas de la base de l'embedding.
-    # La projection PaCMAP est calculée en amont sur E ; une rotation de E conserve
-    # toutes les distances, donc la même projection, donc les mêmes cellules. On le
-    # vérifie ici sur ce qui est réellement exposé : le contenu par cellule.
-    contenu = {}
-    for c in d["cellules"]:
-        contenu[c["c"]] = tuple(c["phares"])
-    d2 = A.atlas(seeds, [])
-    check("le contenu des cellules est déterministe",
-          {c["c"]: tuple(c["phares"]) for c in d2["cellules"]} == contenu)
-
-    # MONOTONIE : retirer une arête ne peut qu'éteindre, jamais allumer
-    ars = [{"film_id": i, "titre": "x", "texte": "un texte",
-            "valence": 0.7, "date": f"2026-0{k+1}-01T10:00:00+00:00"}
-           for k, i in enumerate(ids_from_titles(["Heat", "Whiplash", "Parasite"]))]
-    plein = {c["c"] for c in A.atlas(seeds, ars)["cellules"]}
-    moins = {c["c"] for c in A.atlas(seeds, ars[:-1])["cellules"]}
-    check("retirer une arête n'allume jamais rien", moins <= plein,
-          str(moins - plein))
-
-    # LE TEMPS : ce qui est vieux refroidit, ce qui est récent brûle
-    d3 = A.atlas(seeds, ars)
-    par_age = sorted((c for c in d3["cellules"] if c["age_jours"] is not None),
-                     key=lambda c: c["age_jours"])
-    if len(par_age) >= 2:
-        check(f"le récent brûle plus que l'ancien "
-              f"({par_age[0]['palier']} > {par_age[-1]['palier']})",
-              par_age[0]["palier"] > par_age[-1]["palier"])
-        check("la braise est réservée au dernier mois",
-              all(c["braise"] == (c["age_jours"] < A.DEMI_VIE_JOURS) for c in par_age))
-
-    # LE RELIEF est une fonction PURE du vecteur de goût. C'est le test exact qui avait
-    # condamné la rampe de finesse de l'empreinte : ajouter des arêtes qui laissent le
-    # vecteur colinéaire ne doit changer AUCUNE cellule. (L'empreinte en changeait 82 %.)
-    colin = [{"film_id": i, "valence": 0.8} for i in seeds]
-    r0 = A.atlas(seeds, [])["socle"]
-    for k in (1, 3, 6):
-        rk = A.atlas(seeds, colin * k)["socle"]
-        bouge = sum(1 for x, y in zip(r0, rk) if x != y)
-        check(f"le relief ignore le compteur ({len(seeds)*k} arêtes colinéaires, "
-              f"{bouge} cellules)", bouge == 0, str(bouge))
-    # …mais il RÉAGIT à un vrai déplacement du goût
-    autres = ids_from_titles(["Toy Story", "Shrek", "Frozen"])
-    if autres:
-        rr = A.atlas(seeds, [{"film_id": i, "valence": 0.9} for i in autres])["socle"]
-        bouge = sum(1 for x, y in zip(r0, rr) if x != y)
-        check(f"…et il réagit à un vrai déplacement ({bouge} cellules)", bouge > 100,
-              str(bouge))
-
-    # RÈGLE DURE 3 : aucun pourcentage, aucun comptage de territoires dans la charge utile
-    interdits = ("part", "pourcentage", "complet", "score", "territoires_visites")
-    check("aucune statistique publiée", not (set(d3) & set(interdits)),
-          str(set(d3) & set(interdits)))
-
-
 def test_le_journal_ne_perd_rien():
     """Le produit détruisait de la donnée tous les soirs, et c'était irrécupérable.
 
@@ -761,7 +659,6 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_carte_du_gout,
-              test_atlas_chaque_pixel_a_une_cause,
               test_le_journal_ne_perd_rien,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
               test_les_rejets_ne_sortent_pas_du_cone,

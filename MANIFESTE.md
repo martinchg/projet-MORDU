@@ -290,6 +290,32 @@ d'où : la serrure ressenti est le cœur, c'est elle qui fabrique la donnée uni
 
 ## 8. Le cimetière (écarté, et pourquoi — ne pas ressusciter en douce)
 
+- **L'ATLAS (22/07, mort le jour de sa naissance)** — et c'est la meilleure entrée de ce
+  cimetière, parce que la cause est nommée par Martin lui-même :
+
+  > « Trop abstrait. Ça ne fait que mettre des points, ça ne bouge pas. Faire un truc
+  > original et bizarre juste pour le dire, parce qu'en vrai ça ne sert à rien. »
+
+  Construit pour remplacer l'empreinte, qu'une rotation orthogonale avait démasquée. Il
+  était, lui, rigoureusement honnête : contenu invariant par rotation, aucun pixel sans
+  cause, aucune légende qui ne passe son hypothèse nulle. Il a été mesuré sous toutes les
+  coutures — et il ne servait à rien.
+
+  **La leçon, et elle vaut pour tout le reste :** vérifier qu'une chose est VRAIE ne dit
+  rien sur son droit d'exister. Une journée entière à rendre une image honnête, sans
+  jamais demander à quoi elle sert. Le test qu'elle échouait est simple et il aurait dû
+  venir en premier :
+
+  > **Est-ce que ça aide à choisir un film ce soir, ou est-ce que ça change ce que
+  > l'oracle tire ? Si non, ça n'a pas sa place.**
+
+  Aggravant : le produit dit « tu ne choisis pas parmi des milliers, tu déclares une
+  envie ». L'atlas étalait les 6000 films sous les yeux. C'était le catalogue rentré par
+  la porte de derrière, en plus joli.
+
+  Ce qui SURVIT et qu'on ne touche pas : la **carte du goût** du profil. Elle ne prétend
+  rien de plus que ce qu'elle est, et son abstraction est le plancher du problème — on ne
+  peut pas faire mieux en projetant 384 dimensions sur un plan.
 - **Le versus « ça ou ça »** : fabrique de faux négatifs entre chefs-d'œuvre orthogonaux.
 - **Les étoiles/notes** : évaluation ≠ envie. Le texte porte les deux, et le pourquoi.
 - **La watchlist classique** : dette + retour du choix. Remplacée par la boîte aux lettres.
