@@ -25,6 +25,7 @@ from recommender.oracle import tirage
 from recommender import aretes
 from recommender import relecture
 from recommender.profil_vue import construire as construire_profil
+from recommender.profil_vue import evolution as construire_evolution
 from recommender.carte import carte as construire_carte
 
 app = FastAPI(title="MORDU API")
@@ -309,6 +310,12 @@ def api_profil():
     """Ce que l'oracle a compris de toi. Tout est recalculé à la volée depuis les
     arêtes brutes — rien n'est stocké (MANIFESTE §4 : les profils sont des vues)."""
     return construire_profil(aretes.graines(), aretes.toutes(), aretes.palmares())
+
+
+@app.get("/api/evolution")
+def api_evolution():
+    """L'empreinte à chaque état HISTORIQUE réel — ton histoire, pas une simulation."""
+    return construire_evolution(aretes.graines(), aretes.toutes())
 
 
 @app.get("/api/carte")

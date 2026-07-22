@@ -30,6 +30,10 @@ def check(nom, cond, detail=""):
     else:
         _ko += 1
         print(f"  ÉCHEC {nom}  {detail}")
+        # En autonome on continue pour voir TOUS les échecs d'un coup. Sous pytest il faut
+        # lever, sinon la suite passe au vert en imprimant ses propres échecs.
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            raise AssertionError(f"{nom}  {detail}")
 
 
 def test_trois_axes_orthogonaux():
