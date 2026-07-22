@@ -241,6 +241,15 @@ def atlas(graines, aretes):
         "cellules": cellules,
         "cellules_pleines": int(_PLEINES.sum()),
         "films": len(_movies),
+        # LES TOPONYMES. Une carte sans noms de lieux est illisible — c'est exactement ce
+        # qu'on reprochait au glyphe, et l'atlas répétait la faute : de belles taches
+        # qu'aucun humain ne peut lire. Les territoires étaient déjà nommés dans carte.py
+        # (par lift x IDF, donc par ce qui les DISTINGUE) ; ils n'étaient affichés nulle
+        # part. On expose les plus grands, avec leurs coordonnées dans le même cadrage.
+        "territoires": [
+            {"nom": t["nom"], "x": t["x"], "y": t["y"], "n": t["n"]}
+            for t in sorted(_TERRITOIRES.values(), key=lambda t: -t["n"])[:14]
+        ],
         # aucune part, aucun pourcentage, aucun comptage de territoires : mesuré, ces
         # phrases-là sortent 100 fois sur 100 sur des historiques tirés au hasard
     }

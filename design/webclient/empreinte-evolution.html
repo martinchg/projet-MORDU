@@ -17,7 +17,12 @@
 
 .monde{position:relative;border:1px solid var(--line);background:var(--creux);
   line-height:0}
-#atlas{image-rendering:pixelated;width:100%;height:auto;display:block;cursor:crosshair}
+/* PAS de image-rendering:pixelated ici. Le relief est un champ CONTINU (l'affinité de
+   chaque endroit avec ton goût) : le rendre en blocs durs le fait lire comme du bruit.
+   Il est donc interpolé. La règle du manifeste tient toujours — le tramage est réservé à
+   ce qui est CACHÉ, et un relief ne cache rien. Ce qui reste net, ce sont tes films :
+   ce sont des faits discrets, pas un champ. */
+#atlas{width:100%;height:auto;display:block;cursor:crosshair}
 .viseur{position:absolute;border:1px solid var(--red);pointer-events:none;opacity:0;
   transition:opacity .12s;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
 .viseur.on{opacity:1}
@@ -87,11 +92,11 @@ et lequel des tiens l'a allumée.</span></p>
     </div>
     <div class="quand"><span id="ou">—</span><span id="cnt"></span></div>
     <div class="legende">
-      <span><i style="background:#14161A"></i>aucun film ici</span>
+      <span><i style="background:#12141A"></i>aucun film</span>
       <span><i id="lg-froid"></i>loin de ton goût</span>
       <span><i id="lg-socle"></i>proche de ton goût</span>
-      <span><i id="lg-vieux"></i>tu y es allé</span>
-      <span><i style="background:#E82E28"></i>ce mois-ci</span>
+      <span><i id="lg-vieux" style="border-radius:50%"></i>un film que tu as raconté</span>
+      <span><i style="background:#E82E28;border-radius:50%"></i>ce mois-ci</span>
     </div>
   </div>
 
@@ -145,32 +150,80 @@ Promise.all([
   $("lg-socle").style.background = rgb(PAL[6]);
   $("lg-vieux").style.background = rgb(PAL[8]);
 
-  function peindre(jusqu){
-    const im=ctx.createImageData(W,H), d=im.data;
-    // 1. LE SOCLE — le catalogue entier. Identique pour tout le monde : il n'affirme
-    //    rien sur personne, et il évite l'écran noir du premier jour.
+  // --- LE RELIEF, LISSE ------------------------------------------------------------
+  // On peint le champ sur une grille 48x32 hors écran, puis on l'étire en INTERPOLANT.
+  // C'est ce qui transforme un damier illisible en carte de relief : le champ est
+  // continu par nature (corrélation mesurée entre cellules voisines : 0,557), le rendre
+  // en blocs durs contredisait sa propre nature.
+  const ECH = 20;                       // 48x32 -> 960x640
+  cv.width = W * ECH; cv.height = H * ECH;
+  const bas = document.createElement("canvas");
+  bas.width = W; bas.height = H;
+  const bctx = bas.getContext("2d");
+  {
+    const im = bctx.createImageData(W, H), d = im.data;
     A.socle.forEach((v,i)=>{
-      // v=0 : aucun film ici, c'est du vide et pas une opinion. v=1..6 : LE RELIEF,
-      // l'affinité de cet endroit du cinéma avec ton goût. C'est le calcul que fait
-      // l'oracle pour tirer ses cartes, rendu visible.
-      const c = v===0 ? [20,22,26] : PAL[v];
+      const c = v===0 ? [18,20,24] : PAL[v];   // 0 : aucun film. Le vide n'est pas une opinion.
       d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
     });
-    // 2. LES TERRES CONNUES, puis 3. LA BRAISE par-dessus
+    bctx.putImageData(im,0,0);
+  }
+
+  function peindre(jusqu){
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.drawImage(bas, 0, 0, cv.width, cv.height);
+
+    // --- LES NOMS DE LIEUX. Sans eux la carte est un joli nuage que personne ne peut
+    //     lire — c'était le reproche exact fait au glyphe, et l'atlas le répétait. Les
+    //     territoires étaient déjà nommés par ce qui les DISTINGUE (lift x IDF) ; ils
+    //     n'étaient affichés nulle part.
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "600 15px -apple-system, Helvetica Neue, Arial, sans-serif";
+    const poses = [];
+    // les points de tes films d'abord, pour qu'un toponyme ne vienne jamais se poser
+    // dessus : c'est TOI qui prime sur la géographie
     ordre.slice(0, jusqu).forEach(k=>{
-      const c=A.cellules[k], i=c.c;
-      const base = PAL[Math.min(PAL.length-3, c.palier)];   // 7..8 = terres connues
-      let col = base;
-      if(c.braise){
-        // le rouge est réservé au dernier mois, et il est TRAÇABLE : la cellule sait
-        // quel film l'a allumée et quand
-        const t=Math.min(1,(c.palier-3)/7);
-        col=[Math.round(base[0]+(232-base[0])*t), Math.round(base[1]+(46-base[1])*t),
-             Math.round(base[2]+(40-base[2])*t)];
-      }
-      d[i*4]=col[0]; d[i*4+1]=col[1]; d[i*4+2]=col[2]; d[i*4+3]=255;
+      const c = A.cellules[k];
+      poses.push({x:(c.c % W + 0.5)*ECH, y:(Math.floor(c.c / W) + 0.5)*ECH, l:170});
     });
-    ctx.putImageData(im,0,0);
+    (A.territoires||[]).forEach(t=>{
+      const mots = t.nom.split(" · ");
+      const larg = Math.max(...mots.map(m=>ctx.measureText(m).width));
+      // on rentre le toponyme dans le cadre : un nom coupé au bord ne se lit pas
+      const marge = larg/2 + 10;
+      const x = Math.min(Math.max(t.x*cv.width, marge), cv.width - marge);
+      const y = Math.min(Math.max((1-t.y)*cv.height, 26), cv.height - 26 - (mots.length-1)*17);
+      if(poses.some(p=>Math.abs(p.x-x) < (p.l||larg/2+90) && Math.abs(p.y-y) < 34)) return;
+      poses.push({x, y, l:larg/2+90});
+      mots.forEach((m,k)=>{
+        const yy = y + (k - (mots.length-1)/2)*17;
+        ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,9,11,.85)";
+        ctx.strokeText(m, x, yy);                       // liseré : lisible sur tout fond
+        ctx.fillStyle = "rgba(237,235,226,.80)";
+        ctx.fillText(m, x, yy);
+      });
+    });
+
+    // --- TES FILMS. Nets, discrets, par-dessus. Ce sont des faits, pas un champ.
+    ordre.slice(0, jusqu).forEach(k=>{
+      const c = A.cellules[k];
+      const x = (c.c % W + 0.5)*ECH, y = (Math.floor(c.c / W) + 0.5)*ECH;
+      const col = c.braise ? "#E82E28" : rgb(PAL[8]);
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fillStyle = col; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,9,11,.9)"; ctx.stroke();
+      // le titre du film, à côté du point : c'est ce qui rend la carte immédiatement
+      // lisible sans rien tapoter
+      ctx.font = "600 14px -apple-system, Helvetica Neue, Arial, sans-serif";
+      ctx.textAlign = x > cv.width*0.72 ? "right" : "left";
+      const dx = x > cv.width*0.72 ? -16 : 16;
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,9,11,.9)";
+      ctx.strokeText(c.cause.titre, x+dx, y);
+      ctx.fillStyle = c.braise ? "#F5A9A5" : "#EDEBE2";
+      ctx.fillText(c.cause.titre, x+dx, y);
+      ctx.textAlign = "center";
+    });
   }
 
   const scrub=$("scrub"); scrub.max=ordre.length; scrub.value=ordre.length;
