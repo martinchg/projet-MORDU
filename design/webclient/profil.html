@@ -328,15 +328,19 @@ function barres(items, cle, val){
     });
     ctx.putImageData(im,0,0);
     document.getElementById("emptxt").innerHTML=
-      `Ce glyphe est <b>ton vecteur de goût</b> — 384 dimensions repliées, une cellule par
-       dimension, quantifiées sur les ${E.niveaux} couleurs de la palette. Il est
-       <b>déterministe</b> : même goût, même image. C'est une <b>signature</b>, pas un
-       portrait : il t'identifie sans rien raconter. Ce qui se lit est au-dessus.
-       <br><br>Il ne « se résout » plus avec le nombre de ressentis. Cette rampe existait,
-       et elle était <b>fausse</b> : à goût strictement identique, jusqu'à 82 % de la
-       grille changeait de couleur juste parce que le compteur montait. C'était une jauge
-       de complétion déguisée en glyphe. Ce qui bouge ici, désormais, c'est ton goût —
-       rien d'autre.
+      `Ce glyphe est <b>un sceau</b> — ton vecteur de goût replié, une cellule par
+       dimension, quantifié sur les ${E.niveaux} couleurs de la palette. Il est
+       <b>déterministe</b> : même goût, même image ; goût différent, image différente.
+       Il t'identifie, et c'est tout ce qu'il fait.
+       <br><br><b>Ce qu'il ne fait pas, et il vaut mieux le savoir.</b> La DISPOSITION des
+       taches ne veut rien dire. En faisant tourner l'espace au hasard — une opération qui
+       laisse les 6000 similarités identiques à 3,3·10⁻¹⁶ près et les recommandations
+       rigoureusement inchangées — <b>90 % de cette image change</b>. Les formes que tu y
+       vois viennent d'un choix de coordonnées arbitraire, pas de toi. C'est un sceau, pas
+       une carte : n'essaie pas de le lire.
+       <br><br>Il ne « se résout » plus non plus avec le nombre de ressentis. Cette rampe
+       existait, et elle était fausse pour la même famille de raison : à goût strictement
+       identique, jusqu'à 82 % de la grille changeait juste parce que le compteur montait.
        <a href="empreinte-evolution.html" style="color:var(--red);font-size:12px">
        voir ce qui bouge dans le temps →</a><br>
        <span style="font-family:var(--mono);font-size:9.5px">${E.aretes} arête${E.aretes>1?"s":""}</span>`;

@@ -112,6 +112,15 @@ sortait 60 fois sur 60. Ces mesures montaient mécaniquement avec le nombre de f
 le goût. Le profil cumulé est une moyenne&nbsp;: il converge, et il est invariant à l'ordre —
 il ne peut donc contenir aucune information sur le temps. Seul le profil <i>récent</i> en
 contient. Le reste a été supprimé plutôt que réglé.</p>
+
+<p class="note">Et une limite de la grille elle-même, qu'il faut connaître pour ne pas trop
+lui demander&nbsp;: <b>où</b> tombent les braises ne veut rien dire. En faisant tourner
+l'espace des embeddings au hasard — une opération qui laisse les 6000 similarités identiques
+à 3,3·10⁻¹⁶ près, donc les recommandations rigoureusement inchangées — <b>90,4 % de cette
+image change</b>. Le rangement des dimensions atteint d'ailleurs la même corrélation entre
+voisines dans une base tirée au sort (0,238) que dans la vraie (0,242)&nbsp;: il lisse, il ne
+révèle rien. Seule la <b>quantité</b> de braise a un sens, et l'écart en degrés qui la
+produit. C'est un sceau, pas une carte.</p>
 </div>
 
 <script>
@@ -157,9 +166,11 @@ fetch(API+"/api/evolution").then(r=>r.json()).then(D=>{
       qu'il n'y a rigoureusement rien à montrer.`;
   }else if(B && B.part>0){
     t.className="tete";
+    // On ne dit RIEN de ce que les braises désignent : leur DISPOSITION dans la grille
+    // dépend d'une base arbitraire (voir la note en bas de page). Seule leur QUANTITÉ
+    // veut dire quelque chose, et l'écart en degrés qui la produit.
     t.innerHTML=`Ce que tu racontes en ce moment tire <b>à ${B.ecart.toFixed(1).replace(".",",")}°</b>
-      de tout ce que tu as raconté. Les braises rouges sont les régions de ton goût où
-      l'écart se voit — <b>${pct(B.part)}</b> de la grille.`;
+      de tout ce que tu as raconté — assez pour allumer <b>${pct(B.part)}</b> de la grille.`;
   }else{
     t.className="tete mut";
     t.innerHTML=`Pas encore d'écart entre ce que tu racontes en ce moment et l'ensemble.

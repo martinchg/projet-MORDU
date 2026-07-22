@@ -458,6 +458,58 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_le_glyphe_est_un_sceau_pas_une_carte():
+    """La DISPOSITION des cellules ne veut rien dire, et ce test l'établit pour de bon.
+
+    Argument d'un audit externe, vérifié : une rotation orthogonale de l'espace conserve
+    tous les cosinus, donc TOUTES les recommandations — et change le glyphe presque
+    entièrement. Ce qu'on y voit vient d'un choix de coordonnées arbitraire.
+
+    Conséquence produit : le glyphe a le droit d'IDENTIFIER (même goût, même image), il
+    n'a pas le droit d'EXPLIQUER. Toute phrase du type « ces taches sont des régions de
+    ton goût » est un mensonge et ce test est là pour l'empêcher de revenir.
+    """
+    import numpy as np
+    from recommender.profil_vue import LARGEUR, NIVEAUX, empreinte
+    from recommender.recommend import _E
+    seeds = ids_from_titles(GRAINES)
+
+    p = profil(seeds, [])
+    rng = np.random.default_rng(11)
+    Q, _ = np.linalg.qr(rng.standard_normal((_E.shape[1], _E.shape[1])))
+
+    # 1) la rotation ne change RIEN au modèle
+    ecart = float(np.abs((_E @ p) - ((_E @ Q) @ (p @ Q))).max())
+    check(f"la rotation conserve les similarités (écart {ecart:.1e})", ecart < 1e-12,
+          f"{ecart:.2e}")
+
+    # 2) …et pourtant elle change presque tout le glyphe. On reproduit la quantification
+    #    d'empreinte() à la main sur le vecteur tourné, ordre naturel des deux côtés :
+    #    même sans réordonnancement, l'image est déjà méconnaissable.
+    def grille_brute(v):
+        x = np.asarray(v, dtype=float)
+        h = int(np.ceil(len(x) / LARGEUR))
+        pad = np.zeros(h * LARGEUR)
+        pad[: len(x)] = x
+        g = pad.reshape(h, LARGEUR)
+        lo, hi = np.percentile(g, 3), np.percentile(g, 97)
+        g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
+        return np.floor(g * (NIVEAUX - 1) + 0.5).astype(int)
+
+    part = float((grille_brute(p) != grille_brute(p @ Q)).mean())
+    check(f"le glyphe, lui, change presque entièrement ({part:.0%})", part > 0.7,
+          f"{part:.0%} — si ce chiffre s'effondre, relire le §5 du manifeste")
+
+    # 3) ce qui SURVIT, et qui est la seule promesse qu'on a le droit de faire
+    a = empreinte(seeds, [])
+    check("à base fixée : même goût, même image",
+          a["cellules"] == empreinte(seeds, [])["cellules"])
+    autre = ids_from_titles(["Toy Story", "Spirited Away", "Shrek"])
+    if autre:
+        check("goût différent, image différente",
+              a["cellules"] != empreinte(autre, [])["cellules"])
+
+
 def test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets():
     """Les deux cartes non prises sont le seul VRAI témoin — et elles étaient jetées.
 
@@ -641,6 +693,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_empreinte, test_carte_du_gout,
+              test_le_glyphe_est_un_sceau_pas_une_carte,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
               test_les_rejets_ne_sortent_pas_du_cone,
               test_derive_se_tait_sur_du_bruit, test_derive_ce_qui_reste,

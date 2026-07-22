@@ -64,18 +64,28 @@ _ORDRE_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def _ordre_dimensions():
-    """Range les 384 dimensions pour que les CORRÉLÉES soient voisines.
+    """Range les 384 dimensions pour que les corrélées soient voisines. LISSAGE PUREMENT
+    COSMÉTIQUE — et il a fallu un audit externe pour l'admettre.
 
-    Sans ça le glyphe est du poivre et sel par construction : les dimensions d'un
-    embedding sont dans un ordre arbitraire, donc deux cellules voisines n'ont aucun
-    lien et l'œil ne voit qu'un grésillement. On ordonne par regroupement hiérarchique
-    avec ordonnancement optimal des feuilles — mesuré, la corrélation entre voisins
-    passe de 0,079 à 0,242 (3x).
+    Ce que ça fait vraiment : sans ordonnancement le glyphe est du poivre et sel, avec il
+    a des régions. La corrélation entre cellules voisines passe de 0,079 à 0,242.
 
-    Plafond honnête : seules 0,4 % des paires de dimensions dépassent |r| = 0,3. Les
-    embeddings sont largement décorrélés par entraînement — le glyphe gagne des
-    régions, il ne deviendra jamais une image figurative. Il n'y a rien de plus à
-    en tirer.
+    CE QUE ÇA NE FAIT PAS, mesuré le 22/07 : ça ne révèle AUCUNE structure du goût. En
+    appliquant une rotation orthogonale aléatoire Q à l'espace (E' = E·Q, p' = p·Q), les
+    6000 similarités sont conservées à 3,3e-16 près et le top-20 des recommandations est
+    identique — le modèle est rigoureusement le même. Or le glyphe change à 90,4 %, et le
+    même ordonnancement atteint 0,238 de corrélation dans cette base tirée au hasard,
+    contre 0,242 dans la vraie.
+
+    Autrement dit : il obtient le même résultat sur n'importe quelles coordonnées. Les
+    « régions » qu'il dessine sont un artefact de la procédure de tri, pas une propriété
+    de la personne. Elles n'ont donc pas le droit d'être COMMENTÉES à l'écran — dire
+    « ces taches sont des régions de ton goût qui ont bougé ensemble » était faux, et
+    c'est retiré.
+
+    Ce qui survit : à modèle fixé, même goût -> même image, goût différent -> image
+    différente. C'est une empreinte au sens d'un SCEAU, pas au sens d'une carte. Elle
+    identifie ; elle n'explique rien, et on ne doit rien lui faire dire.
 
     Calculé une fois, mis en cache : l'ordre ne dépend que du catalogue.
     """
