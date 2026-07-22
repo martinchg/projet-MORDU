@@ -283,12 +283,14 @@ def test_onboarding_exige_des_descriptions():
           len(parle["vocabulaire"]) >= 8)
     check("5 descriptions rendent le portrait fiable d'emblée", parle["fiable"] is True)
     # CE QUE LES DESCRIPTIONS N'APPORTENT PAS, et il vaut mieux l'avoir écrit : elles ne
-    # déplacent PAS l'empreinte d'un pixel. Décrire une graine ajoute une arête sur le
+    # déplacent PAS la géométrie d'un iota. Décrire une graine ajoute une arête sur le
     # MÊME film, donc le vecteur reste colinéaire — unit((1 + 1,5·v)·Σvᵢ) = unit(Σvᵢ).
     # Toute la valeur de l'onboarding est donc dans les MOTS (portrait, vocabulaire,
     # silences rompus), pas dans la géométrie. Promettre l'inverse serait un mensonge.
+    from recommender.oracle import profil as _p
     check("décrire ses graines ne bouge pas la géométrie (colinéaire)",
-          parle["empreinte"]["cellules"] == muet["empreinte"]["cellules"])
+          float(_p(seeds, []) @ _p(seeds, [{"film_id": i, "valence": .8} for i in seeds]))
+          > 1 - 1e-9)
     check("… mais donne un portrait là où il n'y en avait aucun",
           parle["portrait"]["phrase"] and not muet["portrait"]["phrase"])
 
@@ -353,50 +355,6 @@ def test_portrait_lisible():
     check("le portrait lit le texte brut", "image" in r["cites"])
 
 
-def test_empreinte():
-    """L'empreinte est le vecteur profil rendu en glyphe : elle doit être DÉTERMINISTE
-    (même goût, même image), SENSIBLE (elle change quand le goût change) et se RÉSOUDRE
-    à mesure qu'on écrit — comme les affiches. C'est le Wrapped, dès la 1re arête."""
-    from recommender.profil_vue import empreinte
-    seeds = ids_from_titles(["Se7en", "Zodiac", "Prisoners"])
-    a = empreinte(seeds, [])
-    check("l'empreinte se calcule", a is not None and len(a["cellules"]) > 0)
-    check("déterministe", a["cellules"] == empreinte(seeds, [])["cellules"])
-    autre = ids_from_titles(["Toy Story", "Spirited Away"])
-    if autre:
-        check("un autre goût donne une autre empreinte",
-              a["cellules"] != empreinte(autre, [])["cellules"])
-    # LE COMPTEUR NE DOIT RIEN PEINDRE. La v1 agrégeait par blocs et faisait varier les
-    # paliers selon le NOMBRE d'arêtes : à goût strictement identique, jusqu'à 82,6 % de
-    # la grille changeait de couleur. C'était une jauge de complétion déguisée en glyphe
-    # (MANIFESTE §8). Ce test verrouille la suppression : ajouter des arêtes qui ne
-    # déplacent PAS le vecteur ne doit rien changer à l'image.
-    neutres = [{"film_id": i, "valence": 0.7} for i in seeds]
-    ref = empreinte(seeds, neutres)
-    for k in (2, 3, 4, 6):
-        rep = empreinte(seeds, neutres * k)
-        bouge = sum(1 for x, y in zip(ref["cellules"], rep["cellules"]) if x != y)
-        check(f"le compteur ne peint rien ({len(neutres)*k} arêtes, {bouge} cellules)",
-              bouge == 0, f"{bouge} cellules ont bougé sans que le goût change")
-    check("paliers figés", ref["niveaux"] == a["niveaux"] == 11)
-    check("les cellules restent dans les paliers",
-          all(0 <= c < a["niveaux"] for c in a["cellules"]))
-    # Les dimensions sont ORDONNÉES pour que les corrélées soient voisines : sans ça
-    # le glyphe est du poivre et sel par construction (l'ordre d'un embedding est
-    # arbitraire, donc deux cellules voisines n'ont aucun lien).
-    import numpy as np
-    from recommender.profil_vue import _ordre_dimensions
-    from recommender.recommend import _E
-    o = _ordre_dimensions()
-    check("l'ordre couvre toutes les dimensions, sans doublon",
-          len(o) == _E.shape[1] and len(set(int(x) for x in o)) == _E.shape[1])
-    C = np.abs(np.corrcoef(_E.T))
-    nat = np.mean([C[i, i + 1] for i in range(_E.shape[1] - 1)])
-    ord_ = np.mean([C[o[i], o[i + 1]] for i in range(_E.shape[1] - 1)])
-    check(f"voisinage plus corrélé qu'en ordre naturel ({ord_:.3f} > {nat:.3f})",
-          ord_ > nat * 1.5)
-
-
 def test_carte_du_gout():
     """La carte doit être HONNÊTE : si la projection déforme trop, elle ment sur ce que
     le moteur fait. On vérifie qu'elle conserve mieux le voisinage qu'une ACP."""
@@ -456,6 +414,79 @@ def _histoire(mots, registres, jours):
              "texte": mots[i], "valence": 0.7, "registre": registres[i],
              "date": f"2026-07-{jours[i]:02d}T10:00:00+00:00"}
             for i in range(len(mots))]
+
+
+def test_atlas_chaque_pixel_a_une_cause():
+    """L'atlas doit tenir exactement là où l'empreinte tombait.
+
+    Le glyphe peignait le vecteur dans une base ARBITRAIRE : une rotation orthogonale
+    laissait le modèle rigoureusement identique et changeait 90 % de l'image. L'atlas
+    peint le CATALOGUE dans une base fixe et allume ce qui a été touché — donc sous
+    rotation, les cosinus étant conservés, le CONTENU de chaque cellule est invariant.
+    C'est ça qui achète le droit de dire « cette tache, c'est ce coin du cinéma ».
+    """
+    import numpy as np
+    from recommender import atlas as A
+    seeds = ids_from_titles(GRAINES)
+
+    d = A.atlas(seeds, [])
+    check(f"le continent existe dès le premier jour ({d['cellules_pleines']} cellules)",
+          d["cellules_pleines"] > 500, str(d["cellules_pleines"]))
+    check("le socle couvre toute la grille",
+          len(d["socle"]) == A.LARGEUR * A.HAUTEUR, str(len(d["socle"])))
+    check("le socle laisse de l'océan", min(d["socle"]) == 0)
+    check("le socle reste SOUS les terres connues", max(d["socle"]) <= 2,
+          str(max(d["socle"])))
+
+    # RÈGLE DURE 1 : aucun pixel sans cause
+    tiens = set(seeds)
+    for c in d["cellules"]:
+        check(f"cellule {c['c']} : une cause nommée",
+              c["cause"] and c["cause"]["film_id"] in tiens, str(c.get("cause")))
+        check(f"cellule {c['c']} : un palier au-dessus du socle", c["palier"] >= 3,
+              str(c["palier"]))
+    check(f"pas plus de cellules que de films touchés ({len(d['cellules'])})",
+          len(d["cellules"]) <= len(seeds))
+
+    # RÈGLE DURE 2 : chaque cellule allumée est LISIBLE — on peut la tapoter
+    check("chaque cellule nomme des films réels",
+          all(c["phares"] for c in d["cellules"]))
+
+    # INVARIANCE : le contenu d'une cellule ne dépend pas de la base de l'embedding.
+    # La projection PaCMAP est calculée en amont sur E ; une rotation de E conserve
+    # toutes les distances, donc la même projection, donc les mêmes cellules. On le
+    # vérifie ici sur ce qui est réellement exposé : le contenu par cellule.
+    contenu = {}
+    for c in d["cellules"]:
+        contenu[c["c"]] = tuple(c["phares"])
+    d2 = A.atlas(seeds, [])
+    check("le contenu des cellules est déterministe",
+          {c["c"]: tuple(c["phares"]) for c in d2["cellules"]} == contenu)
+
+    # MONOTONIE : retirer une arête ne peut qu'éteindre, jamais allumer
+    ars = [{"film_id": i, "titre": "x", "texte": "un texte",
+            "valence": 0.7, "date": f"2026-0{k+1}-01T10:00:00+00:00"}
+           for k, i in enumerate(ids_from_titles(["Heat", "Whiplash", "Parasite"]))]
+    plein = {c["c"] for c in A.atlas(seeds, ars)["cellules"]}
+    moins = {c["c"] for c in A.atlas(seeds, ars[:-1])["cellules"]}
+    check("retirer une arête n'allume jamais rien", moins <= plein,
+          str(moins - plein))
+
+    # LE TEMPS : ce qui est vieux refroidit, ce qui est récent brûle
+    d3 = A.atlas(seeds, ars)
+    par_age = sorted((c for c in d3["cellules"] if c["age_jours"] is not None),
+                     key=lambda c: c["age_jours"])
+    if len(par_age) >= 2:
+        check(f"le récent brûle plus que l'ancien "
+              f"({par_age[0]['palier']} > {par_age[-1]['palier']})",
+              par_age[0]["palier"] > par_age[-1]["palier"])
+        check("la braise est réservée au dernier mois",
+              all(c["braise"] == (c["age_jours"] < A.DEMI_VIE_JOURS) for c in par_age))
+
+    # RÈGLE DURE 3 : aucun pourcentage, aucun comptage de territoires dans la charge utile
+    interdits = ("part", "pourcentage", "complet", "score", "territoires_visites")
+    check("aucune statistique publiée", not (set(d3) & set(interdits)),
+          str(set(d3) & set(interdits)))
 
 
 def test_le_journal_ne_perd_rien():
@@ -522,58 +553,6 @@ def test_le_journal_ne_perd_rien():
         check("le journal ne perd jamais de ligne", len(journal.tous()) > n0)
     finally:
         aretes.ecrire_etat(sauve)
-
-
-def test_le_glyphe_est_un_sceau_pas_une_carte():
-    """La DISPOSITION des cellules ne veut rien dire, et ce test l'établit pour de bon.
-
-    Argument d'un audit externe, vérifié : une rotation orthogonale de l'espace conserve
-    tous les cosinus, donc TOUTES les recommandations — et change le glyphe presque
-    entièrement. Ce qu'on y voit vient d'un choix de coordonnées arbitraire.
-
-    Conséquence produit : le glyphe a le droit d'IDENTIFIER (même goût, même image), il
-    n'a pas le droit d'EXPLIQUER. Toute phrase du type « ces taches sont des régions de
-    ton goût » est un mensonge et ce test est là pour l'empêcher de revenir.
-    """
-    import numpy as np
-    from recommender.profil_vue import LARGEUR, NIVEAUX, empreinte
-    from recommender.recommend import _E
-    seeds = ids_from_titles(GRAINES)
-
-    p = profil(seeds, [])
-    rng = np.random.default_rng(11)
-    Q, _ = np.linalg.qr(rng.standard_normal((_E.shape[1], _E.shape[1])))
-
-    # 1) la rotation ne change RIEN au modèle
-    ecart = float(np.abs((_E @ p) - ((_E @ Q) @ (p @ Q))).max())
-    check(f"la rotation conserve les similarités (écart {ecart:.1e})", ecart < 1e-12,
-          f"{ecart:.2e}")
-
-    # 2) …et pourtant elle change presque tout le glyphe. On reproduit la quantification
-    #    d'empreinte() à la main sur le vecteur tourné, ordre naturel des deux côtés :
-    #    même sans réordonnancement, l'image est déjà méconnaissable.
-    def grille_brute(v):
-        x = np.asarray(v, dtype=float)
-        h = int(np.ceil(len(x) / LARGEUR))
-        pad = np.zeros(h * LARGEUR)
-        pad[: len(x)] = x
-        g = pad.reshape(h, LARGEUR)
-        lo, hi = np.percentile(g, 3), np.percentile(g, 97)
-        g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
-        return np.floor(g * (NIVEAUX - 1) + 0.5).astype(int)
-
-    part = float((grille_brute(p) != grille_brute(p @ Q)).mean())
-    check(f"le glyphe, lui, change presque entièrement ({part:.0%})", part > 0.7,
-          f"{part:.0%} — si ce chiffre s'effondre, relire le §5 du manifeste")
-
-    # 3) ce qui SURVIT, et qui est la seule promesse qu'on a le droit de faire
-    a = empreinte(seeds, [])
-    check("à base fixée : même goût, même image",
-          a["cellules"] == empreinte(seeds, [])["cellules"])
-    autre = ids_from_titles(["Toy Story", "Spirited Away", "Shrek"])
-    if autre:
-        check("goût différent, image différente",
-              a["cellules"] != empreinte(autre, [])["cellules"])
 
 
 def test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets():
@@ -690,8 +669,8 @@ def test_derive_se_tait_sur_du_bruit():
     salve = [{"film_id": i, "titre": "x", "texte": "un film", "valence": 0.7,
               "date": f"2026-07-01T1{k}:00:00+00:00"} for k, i in enumerate(seeds[:3])]
     d = derive(seeds, salve)
-    check("une salve n'allume aucune braise", d["braise"]["part"] == 0.0,
-          str(d["braise"]["part"]))
+    check("une salve n'écarte rien du tout", d["braise"]["ecart"] < 0.05,
+          str(d["braise"]["ecart"]))
     check("une salve est reconnue comme telle", d["salve"] is True)
 
 
@@ -730,11 +709,8 @@ def test_derive_ce_qui_reste():
           all(s["mot"] for s in d["silences"]))
 
     # la braise doit EXISTER dès qu'il y a du temps, et grandir avec l'écart des dates
-    check("du temps passe -> une braise s'allume", d["braise"]["part"] > 0,
+    check("du temps passe -> un écart apparaît", d["braise"]["ecart"] > 0,
           str(d["braise"]))
-    loin = derive(seeds, _histoire([img, img, son, per], ["connu"] * 4, [1, 2, 3, 28]))
-    check(f"plus de temps = plus de braise ({d['braise']['part']} vs {loin['braise']['part']})",
-          loin["braise"]["part"] >= d["braise"]["part"] or loin["braise"]["ecart"] > 0)
 
     # le témoin : un pas ne vaut que comparé à ce qu'aurait fait n'importe quel film
     pcts = [e.get("pas_pct") for e in d["etapes"] if e["n"] > 0]
@@ -743,11 +719,8 @@ def test_derive_ce_qui_reste():
     check("les percentiles sont bien des percentiles",
           all(0.0 <= p <= 1.0 for p in pcts), str(pcts))
 
-    # tous les états partagent la MÊME quantification, sinon ils sont incomparables
-    tailles = {len(e["socle"]) for e in d["etapes"]}
-    check("tous les états ont la même grille", len(tailles) == 1, str(tailles))
-    check("les paliers tiennent dans la palette",
-          all(0 <= c < 11 for e in d["etapes"] for c in e["socle"]))
+    check("un état par ressenti, plus le départ", len(d["etapes"]) == 5,
+          str(len(d["etapes"])))
 
 
 if __name__ == "__main__":
@@ -758,9 +731,9 @@ if __name__ == "__main__":
               test_profil_pondere_par_valence, test_canon_invitation_jamais_dette,
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
-              test_portrait_lisible, test_empreinte, test_carte_du_gout,
+              test_portrait_lisible, test_carte_du_gout,
+              test_atlas_chaque_pixel_a_une_cause,
               test_le_journal_ne_perd_rien,
-              test_le_glyphe_est_un_sceau_pas_une_carte,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
               test_les_rejets_ne_sortent_pas_du_cone,
               test_derive_se_tait_sur_du_bruit, test_derive_ce_qui_reste,

@@ -100,8 +100,39 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
 
    **Deux objets distincts, et il a fallu la remarque de Martin pour le voir (21/07 :
    « l'empreinte ne dit rien de moi ») :**
-   - **L'EMPREINTE** est une *signature* : le vecteur 384D rendu en glyphe. Unique,
-     déterministe, elle t'identifie — mais elle est MUETTE. Ce n'est pas un portrait.
+   - ~~**L'EMPREINTE**~~ — **MORTE LE 22/07, et c'est la leçon la plus dure du projet.**
+     Un audit externe a porté un argument testable : *une rotation orthogonale de
+     l'espace conserve tous les cosinus, donc toutes les recommandations, et produit un
+     glyphe totalement différent.* Mesuré :
+
+     ```
+     écart max sur les 6000 similarités : 3,3e-16   le modèle est LE MÊME
+     ordre complet des 6000 films       : identique
+     cellules du glyphe qui changent    : 90,4 %
+     ```
+
+     Le repli « c'est une signature, pas un portrait » ne tenait pas non plus : en
+     ajoutant 20 films PRIS DANS SON PROPRE GOÛT, le glyphe s'éloignait de lui-même de
+     0,663 — contre 0,794 pour un inconnu. **83 % du chemin vers quelqu'un d'autre.**
+     Une signature doit être stable pour la même personne.
+
+     Remplacée par **L'ATLAS** (`atlas.py`), et le renversement tient en une phrase :
+     *au lieu de peindre TON vecteur dans une base arbitraire, on peint LE CATALOGUE
+     dans une base fixe et on allume ce que tu as touché.* Sous rotation, les cosinus
+     sont conservés, donc les voisinages, donc **le contenu de chaque cellule est
+     invariant**. On tapote n'importe quel pixel et il rend de vrais titres, la date, et
+     la phrase que tu avais écrite. Ce qui date de moins d'un mois brûle en rouge ; ce
+     qui est ancien refroidit sans jamais s'effacer — c'est *ça*, « comment tu as évolué »,
+     et c'est vérifiable case par case.
+
+     Deux règles dures, tenues par des tests : **aucun pixel sans cause** (pas de halo,
+     mesuré à 5 → 50 pixels selon son rayon à goût strictement fixe) et **aucune légende
+     statistique** (« ton plus gros amas est X » sort 100 fois sur 100 sur des historiques
+     tirés au hasard). Une image sans légende est le prix, et il est correct.
+
+     > **La règle qui en sort, et qui vaut pour tout le produit :** toute représentation
+     > du goût doit pouvoir être reliée à un film, une scène ou une phrase — jamais
+     > seulement à une disposition arbitraire de nombres.
    - **LE PORTRAIT** est ce qui se *lit* : la projection des ressentis sur des axes
      NOMMÉS (atmosphère, image, rythme, intrigue, personnages, ambiguïté morale,
      émotion, son, construction, mise en scène). C'est le §4 appliqué — « ce que tu

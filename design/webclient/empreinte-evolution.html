@@ -1,63 +1,56 @@
-<!doctype html><meta charset=utf-8><title>ta dérive — MORDU</title>
+<!doctype html><meta charset=utf-8><title>ton atlas — MORDU</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="mordu.css"><script src="mordu.js"></script>
 <style>
-/* LA DÉRIVE — la seule page du produit où le temps est l'axe principal.
-   Tout le reste de MORDU montre un ÉTAT ; ici on montre un MOUVEMENT.
-
-   Une grille, deux âges, un geste. Le SOCLE est le profil de toujours, quantifié sur les
-   couleurs de nuit — il bouge lentement, il n'est jamais rouge, c'est « qui tu es ». La
-   BRAISE est posée par-dessus, uniquement là où le profil RÉCENT (demi-vie 30 jours)
-   tombe sur un autre palier — c'est « où tu es en train d'aller ».
-
-   Elle naît vide et grossit avec la vie. Aucun compteur, aucune barre : la croissance EST
-   la donnée. Et quand il n'y a rien à dire, l'écran doit rester beau et muet — c'est le
-   test d'acceptation de cette page. */
-.scene{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:26px;align-items:start;
-  margin-top:18px}
-@media(max-width:880px){.scene{grid-template-columns:minmax(0,1fr)}}
+/* TON ATLAS — l'objet qui remplace l'empreinte.
+   Le glyphe peignait le vecteur dans une base arbitraire : une rotation orthogonale
+   laissait le modèle rigoureusement identique et changeait 90 % de l'image. Ici on peint
+   LE CATALOGUE dans une base fixe, et on allume ce qui a été touché. Chaque pixel se
+   tapote et rend des titres. */
+.scene{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start;
+  margin-top:16px}
+@media(max-width:900px){.scene{grid-template-columns:minmax(0,1fr)}}
 
 .tete{border-left:2px solid var(--red);padding:2px 0 2px 15px;font-size:15.5px;
-  line-height:1.55;max-width:70ch;color:var(--ink)}
+  line-height:1.55;max-width:70ch;color:var(--ink);margin-bottom:4px}
 .tete.mut{border-color:var(--line);color:var(--mut);font-size:14px}
 
-/* le glyphe reste une SIGNATURE : au-delà de ~520px les cellules deviennent des pavés et
-   on lit un damier au lieu d'une image. */
-.visu{position:relative;max-width:520px}
-.visu canvas{image-rendering:pixelated;width:100%;height:auto;display:block}
-#socle{border:1px solid var(--line);background:#000}
-#braise{position:absolute;inset:0;border:1px solid transparent;pointer-events:none}
+.monde{position:relative;border:1px solid var(--line);background:var(--creux);
+  line-height:0}
+#atlas{image-rendering:pixelated;width:100%;height:auto;display:block;cursor:crosshair}
+.viseur{position:absolute;border:1px solid var(--red);pointer-events:none;opacity:0;
+  transition:opacity .12s;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.viseur.on{opacity:1}
 
-.legende{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);
-  font-size:11px;color:var(--mut);margin-top:10px;flex-wrap:wrap;max-width:520px}
-.legende b{color:var(--ink);font-weight:400}
-.legende em{color:var(--red);font-style:normal}
-
-/* la réglette : c'est ELLE le geste principal */
-.piste{display:flex;align-items:center;gap:12px;margin-top:12px;max-width:520px}
-input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:26px;background:none;
-  cursor:grab}
+.piste{display:flex;align-items:center;gap:12px;margin-top:14px}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:26px;background:none;cursor:grab}
 input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:22px;
   background:var(--red);margin-top:-10px;border:none;border-radius:0}
 input[type=range]::-moz-range-track{height:2px;background:var(--line)}
-input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red);border:none;
-  border-radius:0}
+input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red);border:none;border-radius:0}
 
-.etapes{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
-.et{all:unset;cursor:pointer;text-align:center;opacity:.45;transition:opacity .15s}
-.et:hover,.et.on{opacity:1}
-.et canvas{image-rendering:pixelated;width:66px;height:44px;border:1px solid var(--line);
-  display:block}
-.et.on canvas{border-color:var(--red)}
-.et span{font-family:var(--mono);font-size:9px;color:var(--mut);display:block;margin-top:5px}
+.quand{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:9px;
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.quand b{color:var(--ink);font-weight:400}
 
-.cote{display:grid;gap:14px}
-.bloc{border:1px solid var(--line);padding:13px 14px}
-.bloc .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+/* la fiche d'une cellule : c'est ELLE la preuve que le pixel veut dire quelque chose */
+.fiche{border:1px solid var(--red);padding:14px 15px;min-height:150px}
+.fiche.vide{border-color:var(--line)}
+.fiche .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
   color:var(--red);margin-bottom:9px}
-.bloc p{margin:0;font-size:12.5px;color:var(--mut);line-height:1.55}
-.bloc .g{font-family:var(--disp);font-size:29px;line-height:1;margin-bottom:6px}
+.fiche .titre{font-family:var(--disp);text-transform:uppercase;font-size:19px;line-height:1.05}
+.fiche q{display:block;font-size:13.5px;line-height:1.5;color:var(--ink);margin:9px 0;
+  border-left:2px solid var(--line);padding-left:10px}
+.fiche q::before{content:"« "} .fiche q::after{content:" »"}
+.fiche .d{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:6px}
+.fiche ul{margin:9px 0 0;padding-left:16px;font-size:12.5px;color:var(--mut);line-height:1.6}
+.fiche .terr{font-size:12px;color:var(--red);font-family:var(--mono);margin-top:8px}
+
+.legende{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;
+  color:var(--mut);margin-top:12px;align-items:center}
+.legende i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-2px;
+  border:1px solid rgba(255,255,255,.15)}
 
 .evts{border-left:2px solid var(--line);padding-left:15px}
 .evt{margin:14px 0;font-size:14px;line-height:1.5}
@@ -70,170 +63,180 @@ input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red)
 <h1 class="brand"><a href="index.html">MORDU</a></h1>
 <nav class="nav"><a href="index.html">Accueil</a><a href="oracle.html">L'oracle</a>
   <a href="profil.html">Mon profil</a><a href="domaines.html">Domaines</a>
-  <a href="empreinte-evolution.html" aria-current="page">Ma dérive</a></nav>
+  <a href="empreinte-evolution.html" aria-current="page">Ton atlas</a></nav>
 
-<h2>Ta dérive</h2>
-<p class="hint">Une grille, <b>deux âges</b>. En couleurs de nuit&nbsp;: tout ce que tu as
-raconté. En rouge&nbsp;: <b>combien ce que tu racontes en ce moment tire ailleurs</b>
-— la quantité, jamais l'endroit (voir la note en bas de page).
-<span class="long">Rien n'est simulé et rien n'est stocké — tes arêtes sont horodatées, donc
-l'histoire est déjà dans les données.</span></p>
+<h2>Ton atlas</h2>
+<p class="hint">Le cinéma entier, projeté sur un plan — et <b>les endroits où tu es allé</b>.
+Ce qui brille est récent, ce qui s'est éteint est ancien, et rien ne s'efface jamais.
+<span class="long">Tapote n'importe quelle tache : elle te dira quels films sont dedans et
+lequel des tiens l'a allumée.</span></p>
 
 <div id="tete" class="tete mut">…</div>
 
 <div class="scene">
   <div>
-    <div class="visu">
-      <canvas id="socle"></canvas>
-      <canvas id="braise"></canvas>
+    <div class="monde">
+      <canvas id="atlas"></canvas>
+      <div class="viseur" id="viseur"></div>
     </div>
-    <div class="legende"><span id="ou">—</span><span id="pas"></span></div>
     <div class="piste">
       <button class="btn" id="play" style="margin:0;padding:9px 14px">▶ rejouer</button>
-      <input type="range" id="scrub" min="0" max="0" step="0.01" value="0"
-             aria-label="position dans ton histoire">
+      <input type="range" id="scrub" min="0" max="0" step="1" value="0"
+             aria-label="remonter dans ton histoire">
     </div>
-    <div class="etapes" id="etapes"></div>
+    <div class="quand"><span id="ou">—</span><span id="cnt"></span></div>
+    <div class="legende">
+      <span><i style="background:#16181C"></i>jamais approché</span>
+      <span><i id="lg-socle"></i>le catalogue</span>
+      <span><i id="lg-vieux"></i>tu y es allé</span>
+      <span><i style="background:#E82E28"></i>ce mois-ci</span>
+    </div>
   </div>
-  <div class="cote" id="cote"></div>
+
+  <div class="fiche vide" id="fiche">
+    <div class="t">une cellule</div>
+    <p style="margin:0;font-size:13px;color:var(--mut);line-height:1.55">
+      Tapote une tache de la carte. Chaque pixel contient de vrais films&nbsp;— c'est ce
+      qui distingue cet atlas de l'empreinte qu'il remplace&nbsp;: là-bas, la position ne
+      voulait rien dire.</p>
+  </div>
 </div>
 
 <div id="bloc-evts" style="display:none">
   <h2>Les silences que tu as rompus</h2>
   <p class="hint">Le §5 du manifeste dit que le signal le plus fort n'est pas ce dont tu
   parles le plus, mais <b>ce dont tu ne parles jamais</b>. Voici les fois où ce silence a
-  cassé. Ce ne sont pas des tendances&nbsp;: ce sont des faits datés, avec ton mot.</p>
+  cassé&nbsp;: des faits datés, avec ton mot.</p>
   <div class="evts" id="evts"></div>
 </div>
 
-<p class="note">Ce que cette page ne fait plus, et pourquoi&nbsp;: elle affichait un cap en
-degrés, une « ouverture », une « audace » et un verdict en français. Passée sur 40 historiques
-<b>tirés au hasard</b>, elle produisait une phrase 40 fois sur 40, et « tu t'es élargi »
-sortait 60 fois sur 60. Ces mesures montaient mécaniquement avec le nombre de films, pas avec
-le goût. Le profil cumulé est une moyenne&nbsp;: il converge, et il est invariant à l'ordre —
-il ne peut donc contenir aucune information sur le temps. Seul le profil <i>récent</i> en
-contient. Le reste a été supprimé plutôt que réglé.</p>
-
-<p class="note">Et une limite de la grille elle-même, qu'il faut connaître pour ne pas trop
-lui demander&nbsp;: <b>où</b> tombent les braises ne veut rien dire. En faisant tourner
-l'espace des embeddings au hasard — une opération qui laisse les 6000 similarités identiques
-à 3,3·10⁻¹⁶ près, donc les recommandations rigoureusement inchangées — <b>90,4 % de cette
-image change</b>. Le rangement des dimensions atteint d'ailleurs la même corrélation entre
-voisines dans une base tirée au sort (0,238) que dans la vraie (0,242)&nbsp;: il lisse, il ne
-révèle rien. Seule la <b>quantité</b> de braise a un sens, et l'écart en degrés qui la
-produit. C'est un sceau, pas une carte.</p>
+<p class="note">Pourquoi cette page a changé d'objet. Elle montrait ton vecteur de goût
+replié en glyphe. En faisant tourner l'espace des embeddings au hasard — une opération qui
+laisse les 6000 similarités identiques à 3,3·10⁻¹⁶ près et l'ordre complet des films
+inchangé — <b>90,4 % de ce glyphe changeait</b>. Il était donc dessiné par un choix de
+coordonnées, pas par toi. Ici c'est l'inverse&nbsp;: une rotation conserve les voisinages,
+donc le contenu de chaque cellule est <b>invariant</b>. Aucun pixel n'est allumé sans un
+film que tu as réellement touché — pas de halo, pas d'extrapolation. Et aucune phrase
+statistique&nbsp;: « ton plus gros amas est X » sort 100 fois sur 100 sur des historiques
+tirés au hasard. Une image sans légende est le prix, et il est correct.</p>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
 const PAL=MORDU.PALETTE;
 const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+const rgb = c => `rgb(${c[0]},${c[1]},${c[2]})`;
 
-function couche(cv, cells, W, H, rouge){
+Promise.all([
+  fetch(API+"/api/atlas").then(r=>r.json()),
+  fetch(API+"/api/evolution").then(r=>r.json()).catch(()=>({})),
+]).then(([A, D])=>{
+  const W=A.largeur, H=A.hauteur, cv=$("atlas"), ctx=cv.getContext("2d");
   cv.width=W; cv.height=H;
-  const ctx=cv.getContext("2d"), im=ctx.createImageData(W,H), d=im.data;
-  cells.forEach((v,i)=>{
-    if(rouge){
-      // la braise : rouge pur, opacité = intensité de l'écart (0 à 3 paliers)
-      d[i*4]=228; d[i*4+1]=19; d[i*4+2]=15; d[i*4+3]=Math.round(255*Math.min(1,v/3));
-    }else{
-      const t=v/10;   // 11 paliers figés, du sombre au clair
-      const c=PAL[Math.min(PAL.length-1, Math.round(t*(PAL.length-2)))];
+
+  // les cellules allumées, dans l'ORDRE CHRONOLOGIQUE réel — c'est ce que la réglette rejoue
+  const dates = A.cellules.map(c=>c.cause.date||"");
+  const ordre = A.cellules.map((c,i)=>i).sort((a,b)=>(dates[a]||"").localeCompare(dates[b]||""));
+  const parCell = {}; A.cellules.forEach(c=>parCell[c.c]=c);
+
+  $("lg-socle").style.background = rgb(PAL[1]);
+  $("lg-vieux").style.background = rgb(PAL[4]);
+
+  function peindre(jusqu){
+    const im=ctx.createImageData(W,H), d=im.data;
+    // 1. LE SOCLE — le catalogue entier. Identique pour tout le monde : il n'affirme
+    //    rien sur personne, et il évite l'écran noir du premier jour.
+    A.socle.forEach((v,i)=>{
+      const c = v===0 ? [22,24,28] : PAL[v];      // 0 = océan, jamais un film
       d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
-    }
+    });
+    // 2. LES TERRES CONNUES, puis 3. LA BRAISE par-dessus
+    ordre.slice(0, jusqu).forEach(k=>{
+      const c=A.cellules[k], i=c.c;
+      const base = PAL[Math.min(PAL.length-3, c.palier)];
+      let col = base;
+      if(c.braise){
+        // le rouge est réservé au dernier mois, et il est TRAÇABLE : la cellule sait
+        // quel film l'a allumée et quand
+        const t=Math.min(1,(c.palier-3)/7);
+        col=[Math.round(base[0]+(232-base[0])*t), Math.round(base[1]+(46-base[1])*t),
+             Math.round(base[2]+(40-base[2])*t)];
+      }
+      d[i*4]=col[0]; d[i*4+1]=col[1]; d[i*4+2]=col[2]; d[i*4+3]=255;
+    });
+    ctx.putImageData(im,0,0);
+  }
+
+  const scrub=$("scrub"); scrub.max=ordre.length; scrub.value=ordre.length;
+  function jauger(n){
+    peindre(n);
+    const der = n>0 ? A.cellules[ordre[n-1]] : null;
+    $("ou").innerHTML = der
+      ? `dernier allumé&nbsp;: <b>${der.cause.titre}</b>` +
+        (der.cause.date? ` · ${der.cause.date.slice(8,10)}/${der.cause.date.slice(5,7)}/${der.cause.date.slice(2,4)}` : "")
+      : "avant tout — le continent seul";
+    $("cnt").innerHTML = `<b>${n}</b> cellule${n>1?"s":""} sur ${A.cellules_pleines} habitées`;
+  }
+  scrub.addEventListener("input",()=>jauger(+scrub.value));
+
+  let raf=null;
+  $("play").addEventListener("click",()=>{
+    if(raf) clearInterval(raf);
+    let n=0; jauger(0);
+    raf=setInterval(()=>{ n++; scrub.value=n; jauger(n);
+      if(n>=ordre.length) clearInterval(raf); }, 420);
   });
-  ctx.putImageData(im,0,0);
-}
 
-const pct = v => Math.round(v*100)+" %";
-
-fetch(API+"/api/evolution").then(r=>r.json()).then(D=>{
-  const E=D.etapes||[];
-  if(!E.length){ $("tete").textContent="Aucune arête : il n'y a rien à rejouer."; return; }
-  const W=D.largeur, H=D.hauteur;
-
-  /* ---- la braise, posée une fois : elle décrit MAINTENANT, pas un état passé ---- */
-  const B=D.braise;
-  if(B && B.part>0) couche($("braise"), B.cellules, W, H, true);
-  else $("braise").style.display="none";
+  /* ---- tapoter un pixel : la preuve que la position veut dire quelque chose ---- */
+  function cellDe(ev){
+    const r=cv.getBoundingClientRect();
+    const x=Math.floor((ev.clientX-r.left)/r.width*W);
+    const y=Math.floor((ev.clientY-r.top)/r.height*H);
+    return {i:y*W+x, x, y, r};
+  }
+  function montrer(ev){
+    const {i,x,y,r}=cellDe(ev);
+    const c=parCell[i], f=$("fiche"), v=$("viseur");
+    v.className="viseur on";
+    v.style.left=(x/W*r.width)+"px"; v.style.top=(y/H*r.height)+"px";
+    v.style.width=(r.width/W)+"px"; v.style.height=(r.height/H)+"px";
+    if(c){
+      f.className="fiche";
+      f.innerHTML=`<div class="t">${c.braise? "tu y es allé ce mois-ci" : "tu y es allé"}</div>
+        <div class="titre">${c.cause.titre}</div>
+        ${c.cause.extrait? `<q>${c.cause.extrait}</q>` : ""}
+        ${c.cause.date? `<div class="d">${c.cause.date.slice(8,10)}/${c.cause.date.slice(5,7)}/${c.cause.date.slice(0,4)}
+          · il y a ${Math.round(c.age_jours)} jour${c.age_jours>=2?"s":""}</div>` : ""}
+        ${c.territoire? `<div class="terr">${c.territoire}</div>` : ""}
+        <ul>${c.phares.map(t=>`<li>${t}</li>`).join("")}</ul>
+        <div class="d">${c.n} film${c.n>1?"s":""} du catalogue dans ce pixel</div>`;
+    }else{
+      // même une cellule VIDE dit quelque chose de vrai : ce qu'il y a là où tu n'es
+      // jamais allé. C'est la seule façon honnête de montrer un manque.
+      f.className="fiche vide";
+      f.innerHTML=`<div class="t" style="color:var(--mut)">tu n'es jamais allé là</div>
+        <p style="margin:0;font-size:13px;color:var(--mut);line-height:1.55">
+        ${A.socle[i]>0 ? "Il y a des films ici, tu n'en as raconté aucun." :
+                         "Il n'y a rien ici — c'est du vide, pas un oubli."}</p>`;
+    }
+  }
+  cv.addEventListener("click",montrer);
+  cv.addEventListener("mousemove",montrer);
+  cv.addEventListener("mouseleave",()=>{ $("viseur").className="viseur"; });
 
   /* ---- ce qu'on a le droit de dire ---- */
   const t=$("tete");
   if(D.salve){
     t.className="tete";
     t.innerHTML=`<b>${D.n} ressentis écrits dans la même séance.</b> C'est une soirée, pas
-      une trajectoire — et tant que le temps n'aura pas passé, je ne te raconterai rien.
-      La grille ci-dessous est ton sceau ; elle ne porte aucune braise, parce
-      qu'il n'y a rigoureusement rien à montrer.`;
-  }else if(B && B.part>0){
-    t.className="tete";
-    // On ne dit RIEN de ce que les braises désignent : leur DISPOSITION dans la grille
-    // dépend d'une base arbitraire (voir la note en bas de page). Seule leur QUANTITÉ
-    // veut dire quelque chose, et l'écart en degrés qui la produit.
-    t.innerHTML=`Ce que tu racontes en ce moment tire <b>à ${B.ecart.toFixed(1).replace(".",",")}°</b>
-      de tout ce que tu as raconté — assez pour allumer <b>${pct(B.part)}</b> de la grille.`;
-  }else{
+      une trajectoire — je ne te raconterai rien tant que le temps n'aura pas passé. En
+      revanche la carte, elle, est déjà vraie&nbsp;: chacune de ces taches est un endroit
+      où tu es réellement allé.`;
+  }else if(A.cellules.length){
     t.className="tete mut";
-    t.innerHTML=`Pas encore d'écart entre ce que tu racontes en ce moment et l'ensemble.
-      C'est un résultat, pas un vide : à ce stade, le temps ne te déplace pas.`;
+    t.innerHTML=`Rien à conclure pour l'instant — mais tout est vérifiable&nbsp;: chaque
+      tache porte le film qui l'a allumée et la date.`;
   }
-
-  /* ---- la réglette ---- */
-  const scrub=$("scrub"); scrub.max=E.length-1;
-  let vignettes=[];
-  function rendre(x){
-    const i=Math.min(E.length-1, Math.round(x));
-    couche($("socle"), E[i].socle, W, H, false);
-    const e=E[i];
-    $("ou").innerHTML = e.n===0 ? "point de départ — <b>tes films de départ seuls</b>"
-      : `<b>${e.n}</b> ressenti${e.n>1?"s":""} · <b>${e.titre||""}</b>`+
-        (e.date? ` · ${e.date.slice(8,10)}/${e.date.slice(5,7)}` : "");
-    // un pas en degrés ne veut rien dire seul : ce qui parle, c'est sa place parmi les
-    // pas qu'auraient produits 400 films au hasard depuis le même état
-    $("pas").innerHTML = (e.n===0 || e.pas_pct==null) ? ""
-      : (e.pas_pct>=0.9 ? `<em>ce film t'a tiré plus loin que ${pct(e.pas_pct)} des films</em>`
-        : e.pas_pct<=0.15 ? `en plein dans ton axe — ${pct(1-e.pas_pct)} des films t'auraient déplacé davantage`
-        : `déplacement ordinaire (${pct(e.pas_pct)} des films font moins)`);
-    vignettes.forEach((b,k)=>b.classList.toggle("on",k===i));
-    // la braise décrit AUJOURD'HUI : on la masque dès qu'on remonte dans le passé, sinon
-    // on la lirait comme si elle avait existé à ce moment-là
-    $("braise").style.opacity = (B && B.part>0 && i===E.length-1) ? 1 : 0;
-  }
-  scrub.addEventListener("input",()=>rendre(+scrub.value));
-
-  $("etapes").innerHTML=E.map(e=>`<button class="et"><canvas></canvas><span>${e.n}</span></button>`).join("");
-  vignettes=[...document.querySelectorAll(".et")];
-  vignettes.forEach((b,i)=>{
-    couche(b.querySelector("canvas"), E[i].socle, W, H, false);
-    b.addEventListener("click",()=>{ scrub.value=i; rendre(i); });
-  });
-
-  let brut=null;
-  $("play").addEventListener("click",()=>{
-    if(brut) cancelAnimationFrame(brut);
-    if(matchMedia("(prefers-reduced-motion:reduce)").matches){ rendre(E.length-1); return; }
-    const t0=performance.now(), duree=420*Math.max(E.length-1,1);
-    (function pas(now){
-      const x=Math.min(E.length-1,(now-t0)/duree*(E.length-1));
-      scrub.value=x; rendre(x);
-      if(x<E.length-1) brut=requestAnimationFrame(pas);
-    })(t0);
-  });
-
-  /* ---- la colonne : des faits, pas des conclusions ---- */
-  $("cote").innerHTML=
-    `<div class="bloc"><div class="t">Amplitude</div>
-      <div class="g">${D.jours<1? "&lt; 1" : Math.round(D.jours)}<small style="font-size:14px;color:var(--mut)"> j</small></div>
-      <p>Entre ton premier et ton dernier ressenti. C'est ça, et non leur nombre, qui décide
-      si une évolution est mesurable.</p></div>
-     <div class="bloc"><div class="t">Braise</div>
-      <div class="g">${B? pct(B.part) : "—"}</div>
-      <p>Part de la grille où ton profil <b>récent</b> (demi-vie 30 jours) tombe sur un
-      autre palier que ton profil de toujours. Elle naît vide et grandit avec la vie.</p></div>
-     <div class="bloc"><div class="t">Silences rompus</div>
-      <div class="g">${(D.silences||[]).length}</div>
-      <p>Les fois où tu as parlé, pour la première fois, d'une chose dont tu n'avais jamais
-      parlé. Zéro statistique là-dedans : ce sont tes mots.</p></div>`;
 
   if((D.silences||[]).length){
     $("bloc-evts").style.display="";
@@ -244,6 +247,6 @@ fetch(API+"/api/evolution").then(r=>r.json()).then(D=>{
     ).join("");
   }
 
-  rendre(E.length-1);
+  jauger(ordre.length);
 });
 </script>

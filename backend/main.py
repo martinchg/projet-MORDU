@@ -28,6 +28,7 @@ from recommender import relecture
 from recommender.profil_vue import construire as construire_profil
 from recommender.derive import derive as construire_derive
 from recommender.carte import carte as construire_carte
+from recommender.atlas import atlas as construire_atlas
 
 app = FastAPI(title="MORDU API")
 
@@ -358,6 +359,18 @@ def api_journal():
     anecdote déguisée en pourcentage.
     """
     return {"compteurs": journal.compteurs(), "evenements": journal.tous()[-50:]}
+
+
+@app.get("/api/atlas")
+def api_atlas():
+    """TON ATLAS — le catalogue peint dans une base fixe, et ce que tu y as allumé.
+
+    Remplace l'empreinte, qui peignait ton vecteur dans une base ARBITRAIRE : une rotation
+    orthogonale laissait les 6000 similarités identiques à 3,3e-16 près et changeait 90 %
+    du glyphe. Ici le contenu de chaque cellule est invariant par rotation — on peut
+    tapoter n'importe quelle tache et lire des titres.
+    """
+    return construire_atlas(aretes.graines(), aretes.toutes())
 
 
 @app.get("/api/evolution")

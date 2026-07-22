@@ -53,7 +53,6 @@ import numpy as np
 
 from .axes import AXES, _de, _touches
 from .oracle import profil
-from .profil_vue import NIVEAUX, empreinte, grille
 from .recommend import _E, _ID2IDX, _unit
 
 DEMI_VIE_JOURS = 30.0   # ~10-13 films à la cadence réelle d'un spectateur
@@ -196,11 +195,6 @@ def derive(graines, aretes):
     if p_tjs is None:
         return {"n": n, "etapes": [], "braise": None, "silences": [], "salve": False}
 
-    # Bornes de quantification GELÉES sur l'état final, réutilisées pour tous les états
-    # ET pour les deux couches. Sans ça chaque état se renormalise sur lui-même et deux
-    # crans consécutifs ne sont pas comparables.
-    _, _, LO, HI = grille(p_tjs)
-
     etapes = []
     precedent = None
     for k in range(n + 1):
@@ -208,14 +202,12 @@ def derive(graines, aretes):
         p = profil(graines, prefixe)
         if p is None:
             continue
-        q, hauteur, _, _ = grille(p, LO, HI)
         pas = _angle(precedent, p) if precedent is not None else 0.0
         e = {
             "n": k,
             "date": prefixe[-1].get("date") if prefixe else None,
             "titre": prefixe[-1].get("titre") if prefixe else None,
             "pas": round(pas or 0.0, 2),
-            "socle": [int(x) for x in q.flatten()],
         }
         if k > 0:
             w = 1.5 * float(ars[k - 1].get("valence", 1.0))
@@ -224,18 +216,15 @@ def derive(graines, aretes):
         precedent = p
 
     # --- LA BRAISE ------------------------------------------------------------------
+    # LA BRAISE N'EST PLUS PEINTE. Elle l'était sur le glyphe, dont la disposition
+    # dépendait d'une base arbitraire (voir atlas.py) ; c'est l'atlas qui porte désormais
+    # le « récent contre ancien », cellule par cellule et film par film. Ce qui reste ici
+    # est le seul nombre qui survivait à une rotation : l'ANGLE entre ce que tu racontes
+    # en ce moment et tout ce que tu as raconté.
     braise = None
     p_rec = _profil_recent(graines, ars, maintenant)
     if p_rec is not None:
-        q_tjs, hauteur, _, _ = grille(p_tjs, LO, HI)
-        q_rec, _, _, _ = grille(p_rec, LO, HI)
-        d = np.abs(q_rec - q_tjs)
-        braise = {
-            "ecart": round(_angle(p_tjs, p_rec) or 0.0, 2),
-            "part": round(float((d > 0).mean()), 3),
-            # intensité 0..3 : au-delà de 3 paliers d'écart, la cellule est à fond
-            "cellules": [int(min(3, x)) for x in d.flatten()],
-        }
+        braise = {"ecart": round(_angle(p_tjs, p_rec) or 0.0, 2)}
 
     # --- salve ou trajectoire ? -------------------------------------------------------
     salve = False
@@ -254,9 +243,6 @@ def derive(graines, aretes):
         "n": n,
         "jours": jours,
         "salve": salve,
-        "largeur": 24,
-        "hauteur": len(etapes[0]["socle"]) // 24 if etapes else 0,
-        "niveaux": NIVEAUX,
         "etapes": etapes,
         "braise": braise,
         "silences": _silences_rompus(ars),

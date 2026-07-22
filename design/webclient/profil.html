@@ -114,7 +114,7 @@
     <a href="oracle.html">L'oracle</a>
     <a href="profil.html" aria-current="page">Mon profil</a>
     <a href="domaines.html">Domaines</a>
-    <a href="empreinte-evolution.html">Ma dérive</a>
+    <a href="empreinte-evolution.html">Ton atlas</a>
   </nav>
   <h2 id="h"></h2>
   <p class="hint" id="intro"></p>
@@ -187,7 +187,7 @@ function barres(items, cle, val){
     ne dit rien, « huis clos » nomme.</p>
     <div class="portrait apparait" id="portrait"></div>
     <div class="bloc apparait" style="margin-bottom:16px">
-      <div class="lbl">Ton empreinte — ta signature, pas ton portrait</div>
+      <div class="lbl">Ton atlas — où tu es allé dans le cinéma</div>
       <div class="emp">
         <canvas id="emp" width="240" height="160"></canvas>
         <div class="txt" id="emptxt"></div>
@@ -324,36 +324,38 @@ function barres(items, cle, val){
   // barres, on le montre tel quel — le vecteur replié en grille et quantifié sur la
   // palette. Déterministe, et il SE RÉSOUT à mesure que tu écris : c'est le même
   // principe que les affiches, appliqué à toi.
-  if(p.empreinte){
-    const E=p.empreinte, cv=document.getElementById("emp"), ctx=cv.getContext("2d");
-    const PAL=MORDU.PALETTE;
-    cv.width=E.largeur; cv.height=E.hauteur;
-    const im=ctx.createImageData(E.largeur,E.hauteur), d=im.data;
-    E.cellules.forEach((v,i)=>{
-      // on parcourt la palette du sombre au clair, en gardant le rouge pour le sommet
-      const t=v/Math.max(E.niveaux-1,1);
-      const c=PAL[Math.min(PAL.length-1, Math.round(t*(PAL.length-2)))];
+  // TON ATLAS — la vignette. L'empreinte qui était ici a été supprimée : elle peignait
+  // le vecteur dans une base ARBITRAIRE (une rotation orthogonale laissait le modèle
+  // rigoureusement identique et changeait 90 % de l'image). Ici on peint le CATALOGUE
+  // dans une base fixe et on allume ce qui a été touché — chaque pixel se tapote et
+  // rend de vrais titres. Détail et interaction sur la page dédiée.
+  try{
+    const A = await GET("/api/atlas");
+    const cv = document.getElementById("emp"), ctx = cv.getContext("2d");
+    const PAL = MORDU.PALETTE;
+    cv.width = A.largeur; cv.height = A.hauteur;
+    const im = ctx.createImageData(A.largeur, A.hauteur), d = im.data;
+    A.socle.forEach((v,i)=>{
+      const c = v===0 ? [22,24,28] : PAL[v];
       d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
+    });
+    A.cellules.forEach(c=>{
+      const base = PAL[Math.min(PAL.length-3, c.palier)];
+      const col = c.braise ? [232,46,40] : base;
+      d[c.c*4]=col[0]; d[c.c*4+1]=col[1]; d[c.c*4+2]=col[2]; d[c.c*4+3]=255;
     });
     ctx.putImageData(im,0,0);
     document.getElementById("emptxt").innerHTML=
-      `Ce glyphe est <b>un sceau</b> — ton vecteur de goût replié, une cellule par
-       dimension, quantifié sur les ${E.niveaux} couleurs de la palette. Il est
-       <b>déterministe</b> : même goût, même image ; goût différent, image différente.
-       Il t'identifie, et c'est tout ce qu'il fait.
-       <br><br><b>Ce qu'il ne fait pas, et il vaut mieux le savoir.</b> La DISPOSITION des
-       taches ne veut rien dire. En faisant tourner l'espace au hasard — une opération qui
-       laisse les 6000 similarités identiques à 3,3·10⁻¹⁶ près et les recommandations
-       rigoureusement inchangées — <b>90 % de cette image change</b>. Les formes que tu y
-       vois viennent d'un choix de coordonnées arbitraire, pas de toi. C'est un sceau, pas
-       une carte : n'essaie pas de le lire.
-       <br><br>Il ne « se résout » plus non plus avec le nombre de ressentis. Cette rampe
-       existait, et elle était fausse pour la même famille de raison : à goût strictement
-       identique, jusqu'à 82 % de la grille changeait juste parce que le compteur montait.
-       <a href="empreinte-evolution.html" style="color:var(--red);font-size:12px">
-       voir ce qui bouge dans le temps →</a><br>
-       <span style="font-family:var(--mono);font-size:9.5px">${E.aretes} arête${E.aretes>1?"s":""}</span>`;
-  }
+      `Le cinéma entier projeté sur un plan — <b>${A.cellules_pleines}</b> cases habitées
+       sur ${A.largeur*A.hauteur} — et les <b>${A.cellules.length}</b> où tu es allé.
+       Ce qui est rouge date de moins d'un mois.
+       <br><br>Chaque pixel contient de <b>vrais films</b> et sait lequel des tiens l'a
+       allumé. C'est ce qui le distingue de l'empreinte qu'il remplace : là-bas, la
+       position ne voulait rien dire — une rotation de l'espace laissait les
+       recommandations rigoureusement identiques et changeait 90 % de l'image.
+       <br><br><a href="empreinte-evolution.html" style="color:var(--red);font-size:12px">
+       explorer l'atlas →</a>`;
+  }catch(e){ document.getElementById("emptxt").textContent = "atlas indisponible"; }
 
   // ---- LA CARTE ----
   MORDU.resoudreTexte(document.getElementById("hc"),"La carte de ton goût",{duree:800});

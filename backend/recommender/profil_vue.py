@@ -59,119 +59,27 @@ def _mots(texte):
     return [m for m in t.split() if len(m) >= 4 and m not in _VIDES]
 
 
-_ORDRE_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "data", "_ordre_dims.npy")
-
-
-def _ordre_dimensions():
-    """Range les 384 dimensions pour que les corrélées soient voisines. LISSAGE PUREMENT
-    COSMÉTIQUE — et il a fallu un audit externe pour l'admettre.
-
-    Ce que ça fait vraiment : sans ordonnancement le glyphe est du poivre et sel, avec il
-    a des régions. La corrélation entre cellules voisines passe de 0,079 à 0,242.
-
-    CE QUE ÇA NE FAIT PAS, mesuré le 22/07 : ça ne révèle AUCUNE structure du goût. En
-    appliquant une rotation orthogonale aléatoire Q à l'espace (E' = E·Q, p' = p·Q), les
-    6000 similarités sont conservées à 3,3e-16 près et le top-20 des recommandations est
-    identique — le modèle est rigoureusement le même. Or le glyphe change à 90,4 %, et le
-    même ordonnancement atteint 0,238 de corrélation dans cette base tirée au hasard,
-    contre 0,242 dans la vraie.
-
-    Autrement dit : il obtient le même résultat sur n'importe quelles coordonnées. Les
-    « régions » qu'il dessine sont un artefact de la procédure de tri, pas une propriété
-    de la personne. Elles n'ont donc pas le droit d'être COMMENTÉES à l'écran — dire
-    « ces taches sont des régions de ton goût qui ont bougé ensemble » était faux, et
-    c'est retiré.
-
-    Ce qui survit : à modèle fixé, même goût -> même image, goût différent -> image
-    différente. C'est une empreinte au sens d'un SCEAU, pas au sens d'une carte. Elle
-    identifie ; elle n'explique rien, et on ne doit rien lui faire dire.
-
-    Calculé une fois, mis en cache : l'ordre ne dépend que du catalogue.
-    """
-    from .recommend import _E
-    if os.path.exists(_ORDRE_CACHE):
-        try:
-            o = np.load(_ORDRE_CACHE)
-            if len(o) == _E.shape[1]:
-                return o
-        except Exception:
-            pass
-    try:
-        from scipy.cluster.hierarchy import leaves_list, linkage, optimal_leaf_ordering
-        from scipy.spatial.distance import squareform
-        C = np.abs(np.corrcoef(_E.T))
-        np.fill_diagonal(C, 1.0)
-        D = 1.0 - C
-        np.fill_diagonal(D, 0.0)
-        D = (D + D.T) / 2
-        cond = squareform(D, checks=False)
-        o = leaves_list(optimal_leaf_ordering(linkage(cond, method="average"), cond))
-    except Exception:
-        o = np.arange(_E.shape[1])          # sans scipy : ordre naturel, ça marche quand même
-    np.save(_ORDRE_CACHE, o)
-    return o
-
-
-_ORDRE = None
-
-
-NIVEAUX = 11          # les 11 couleurs de la palette, une fois pour toutes
-LARGEUR = 24          # 24 x 16 = 384 cellules = 384 dimensions, une cellule par dimension
-
-
-def grille(p, lo=None, hi=None, largeur=LARGEUR):
-    """Un vecteur 384D -> la grille quantifiée, plus les bornes utilisées.
-
-    Séparé d'empreinte() pour que DEUX vecteurs (le profil de toujours et le profil
-    récent) puissent être quantifiés sur les MÊMES bornes. Sans bornes partagées, chacun
-    se renormalise sur lui-même et les comparer n'a aucun sens.
-    """
-    global _ORDRE
-    if _ORDRE is None:
-        _ORDRE = _ordre_dimensions()
-    v = np.asarray(p, dtype=float)[_ORDRE]      # dimensions corrélées côte à côte
-    hauteur = int(np.ceil(len(v) / largeur))
-    pad = np.zeros(hauteur * largeur)
-    pad[: len(v)] = v
-    g = pad.reshape(hauteur, largeur)
-    # normalisation robuste : les extrêmes d'un embedding écraseraient tout le reste
-    if lo is None or hi is None:
-        lo, hi = float(np.percentile(g, 3)), float(np.percentile(g, 97))
-    g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
-    q = np.floor(g * (NIVEAUX - 1) + 0.5).astype(int)
-    return q, hauteur, lo, hi
-
-
-def empreinte(graines, aretes, largeur=LARGEUR):
-    """TON EMPREINTE — le vecteur profil (384D) rendu en glyphe.
-
-    Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en barres,
-    on le montre tel quel, replié en grille et quantifié sur la palette dither.
-    Déterministe : même goût, même glyphe.
-
-    LA RAMPE DE FINESSE A ÉTÉ SUPPRIMÉE (22/07, après mesure). Le glyphe agrégeait par
-    blocs de 3 -> 2 -> 1 et passait de 4 à 11 paliers selon le NOMBRE d'arêtes. En
-    figeant le profil et en ne faisant varier que le compteur, jusqu'à 82,6 % de la
-    grille changeait de couleur À GOÛT STRICTEMENT IDENTIQUE — sept transitions sur
-    douze au-dessus de 45 %. Un vrai pas de goût, lui, en déplace la moitié.
-
-    L'artefact était donc plus gros que le signal : ce qu'on prenait pour « l'empreinte
-    qui évolue » était un compteur d'arêtes dessiné en pixels, c'est-à-dire une jauge de
-    complétion — précisément ce que le §8 du manifeste enterre. Retirer le pourcentage
-    n'aurait pas retiré la jauge ; il fallait retirer la rampe.
-
-    L'évolution est désormais portée par une mesure qui en est vraiment une : la BRAISE
-    (voir derive.py), l'écart entre ce que tu racontes en ce moment et tout ce que tu as
-    raconté. Elle, elle naît vide et grandit avec la vie.
-    """
-    p = profil(graines, aretes)
-    if p is None:
-        return None
-    q, hauteur, lo, hi = grille(p, largeur=largeur)
-    return {"largeur": largeur, "hauteur": hauteur, "niveaux": NIVEAUX,
-            "aretes": len(aretes or []), "lo": lo, "hi": hi,
-            "cellules": [int(x) for x in q.flatten()]}
+# L'EMPREINTE A ÉTÉ SUPPRIMÉE LE 22/07, avec `grille()` et `_ordre_dimensions()`.
+#
+# Elle repliait le vecteur de goût (384 dimensions) en glyphe 24x16. Elle était belle,
+# déterministe, et c'était l'objet auquel Martin tenait le plus. Elle ne montrait rien :
+#
+#     rotation orthogonale de l'espace d'embedding
+#       écart max sur les 6000 similarités : 3,3e-16  -> le modèle est LE MÊME
+#       ordre complet des 6000 films       : identique
+#       cellules du glyphe qui changent    : 90,4 %
+#
+# Autrement dit : après rotation, le glyphe différait de lui-même autant que deux vecteurs
+# aléatoires diffèrent l'un de l'autre. Il ne se dégradait pas, il saturait.
+#
+# Le repli « c'est une signature, pas un portrait » ne tenait pas non plus : en ajoutant
+# 20 films PRIS DANS SON PROPRE GOÛT, le glyphe s'éloignait de lui-même de 0,663 contre
+# 0,794 pour un inconnu — 83 % du chemin vers quelqu'un d'autre. Une signature doit être
+# stable pour la même personne.
+#
+# Remplacée par `atlas.py` : on peint le CATALOGUE dans une base fixe et on allume ce qui
+# a été touché. Sous rotation les cosinus sont conservés, donc les voisinages, donc le
+# CONTENU de chaque cellule — on peut tapoter n'importe quel pixel et lire des titres.
 
 
 def construire(graines, aretes, palmares=None):
@@ -242,6 +150,5 @@ def construire(graines, aretes, palmares=None):
         "duree_moyenne": round(sum(duree) / len(duree)) if duree else None,
         "annee_moyenne": round(sum(annees) / len(annees)) if annees else None,
         "palmares": palmares or {},
-        "empreinte": empreinte(graines, aretes),
         "portrait": _portrait(aretes),
     }
