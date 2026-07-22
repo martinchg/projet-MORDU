@@ -283,7 +283,11 @@ async function choisir(el, els, cartes, i, moteur){
   const dispo=(c.providers_fr||[]).slice(0,3).join(" · ");
   el.querySelector(".meta").innerHTML=
     `${c.runtime||"?"} min · ${(c.genres||[]).join(", ")}${dispo?`<br>${dispo}`:""}`;
-  await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre,pari:c.pari});
+  // on envoie AUSSI les deux cartes non prises. Ce ne sont pas des rejets (§3) : elles
+  // servent de témoin — « et si tu avais pris l'une des deux autres, ce soir-là ». Sans
+  // ça, cette comparaison est impossible à reconstruire après coup.
+  await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre,pari:c.pari,
+    ecartes:cartes.filter(x=>x.id!==c.id).map(x=>x.id)});
   const bloc=document.createElement("div");
   bloc.className="serrure"; bloc.style.marginTop="22px";
   bloc.innerHTML=`<h3>C'est parti</h3>

@@ -210,11 +210,38 @@ _CARTE_FIELDS = ("id", "title", "year", "genres", "poster_url", "poster_path", "
 
 
 # --- Profil -------------------------------------------------------------------------
+# Poids de la répulsion au classement. 0 = les rejets ne comptent pas ; au-delà de ~0,6
+# ils dominent l'attraction et on recommande « tout sauf ce que tu détestes », ce qui
+# n'est pas un goût.
+GAMMA_REPULSION = 0.35
+
+
 def profil(seed_ids, aretes=None):
-    """Vecteur de goût = graines + arêtes (ressentis), pondérées par leur valence.
+    """LE PÔLE D'ATTRACTION — graines + ressentis AIMÉS, jamais les rejets.
 
     Une arête est un ressenti : {film_id, valence (-1..1), ...}. Pas de note, pas
-    d'étoile — la valence est dérivée du texte en aval (v0 : fournie par l'appelant).
+    d'étoile — la valence est dérivée du texte.
+
+    LES REJETS NE SONT PLUS SOUSTRAITS ICI (22/07, après audit externe). La v1 faisait
+    `poids = 1,5 x valence`, donc un film détesté entrait avec un poids NÉGATIF. Or les
+    embeddings de phrases sont fortement anisotropes — mesuré sur ce catalogue : cosinus
+    moyen 0,293 entre deux films au hasard, norme du centroïde global 0,540. Ils vivent
+    dans un CÔNE, et l'opposé d'un vecteur n'y est pas « le contraire du film », c'est une
+    zone morte. Conséquence mesurée en ajoutant des rejets à un profil sain :
+
+        3 graines seules             cos(centroïde) = 0,742   meilleure sim = 0,769
+        + 1 film détesté (-0,8)              0,484                    0,691
+        + 3 films détestés (-0,8)           -0,172                    0,332
+        + 5 films détestés (-1,0)           -0,480                    0,090
+
+    À un seul rejet ça tient (c'est du Rocchio, ça marche). À trois, le profil SORT du
+    cône : plus aucun film du catalogue ne lui ressemble — et l'oracle continuait de
+    servir trois cartes avec des arguments assurés. Un bug muet, invisible tant que
+    personne ne déteste rien.
+
+    Les rejets sont désormais une PÉNALITÉ AU CLASSEMENT (voir `repulsion`), pas une
+    soustraction dans l'espace. Le pôle d'attraction reste ainsi toujours dans le cône —
+    ce qui protège du même coup l'empreinte, la carte et la dérive, qui en dépendent.
     """
     poids, idxs = [], []
     for i in seed_ids or []:
@@ -223,10 +250,32 @@ def profil(seed_ids, aretes=None):
             poids.append(1.0)
     for a in aretes or []:
         i = a.get("film_id")
-        if i in _ID2IDX:
+        v = float(a.get("valence", 1.0))
+        if i in _ID2IDX and v > 0:
             idxs.append(_ID2IDX[i])
             # une arête vécue pèse plus qu'une graine déclarative
-            poids.append(1.5 * float(a.get("valence", 1.0)))
+            poids.append(1.5 * v)
+    if not idxs:
+        return None
+    W = np.array(poids, dtype=float)[:, None]
+    return _unit((_E[idxs] * W).sum(axis=0))
+
+
+def repulsion(aretes=None):
+    """LE PÔLE DE RÉPULSION — ce que tu as rejeté, gardé à part.
+
+    Renvoie None s'il n'y a rien à repousser. Sert de PÉNALITÉ : on retranche
+    `GAMMA_REPULSION x max(0, cos(film, repulsion))` au score. Le `max(0, ...)` compte :
+    sans lui, être *dissemblable* de ce que tu détestes rapporterait des points, ce qui
+    ferait remonter le bruit du catalogue.
+    """
+    poids, idxs = [], []
+    for a in aretes or []:
+        i = a.get("film_id")
+        v = float(a.get("valence", 1.0))
+        if i in _ID2IDX and v < 0:
+            idxs.append(_ID2IDX[i])
+            poids.append(-v)
     if not idxs:
         return None
     W = np.array(poids, dtype=float)[:, None]
@@ -636,6 +685,10 @@ def tirage(seed_ids=None, aretes=None, exclure=None, min_votes=RECO_MIN_VOTES,
         return []
 
     sims = _E @ p
+    # les rejets pénalisent au CLASSEMENT au lieu de déformer le vecteur (cf. `profil`)
+    r = repulsion(aretes)
+    if r is not None:
+        sims = sims - GAMMA_REPULSION * np.clip(_E @ r, 0, None)
     dispo = np.ones(len(_movies), dtype=bool)
     dispo &= _votes >= min_votes
     dispo &= ~_blocked

@@ -228,12 +228,31 @@ def palmares():
             "score": round(bons / len(juges), 2) if juges else None}
 
 
-def poser_choix(film_id, titre=None, registre=None, pari=None):
+def poser_choix(film_id, titre=None, registre=None, pari=None, ecartes=None):
+    """Arme la serrure sur le film choisi, et GARDE LES DEUX AUTRES CARTES.
+
+    `ecartes` = les deux films qu'on te montrait au même moment et que tu n'as pas pris.
+
+    ATTENTION AU CONTRESENS — ce ne sont PAS des rejets (MANIFESTE §3 : jamais dans les
+    disliked). Ne pas choisir un film un mardi soir ne dit rien de ton goût pour lui ;
+    c'est même toute la thèse du produit contre le versus « A ou B ». Ils ne touchent donc
+    ni le profil, ni la répulsion.
+
+    Ils sont conservés pour une seule raison, et elle est méthodologique : ils sont le bon
+    TÉMOIN. Aujourd'hui, mesurer « de combien ce film t'a déplacé » se compare à 400 films
+    tirés uniformément dans le catalogue — or l'oracle ne propose jamais uniformément, donc
+    le match est truqué. Le vrai contrefactuel, c'est « et si tu avais pris l'une des deux
+    autres, ce soir-là ». Sans ces deux ids, cette comparaison est IMPOSSIBLE À
+    RECONSTRUIRE APRÈS COUP : c'est pour ça qu'on les écrit maintenant, même si rien ne
+    les exploite encore.
+    """
     # On MET À JOUR l'état, on ne le remplace pas : écrire {"en_attente": …} tout court
     # effaçait les graines de l'onboarding (donc le profil) au premier choix.
     e = lire_etat()
     e["en_attente"] = {"film_id": int(film_id), "titre": titre,
-                       "registre": registre, "pari": pari, "date": _now()}
+                       "registre": registre, "pari": pari, "date": _now(),
+                       "ecartes": [int(i) for i in (ecartes or [])
+                                   if int(i) != int(film_id)]}
     ecrire_etat(e)
 
 

@@ -458,6 +458,83 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets():
+    """Les deux cartes non prises sont le seul VRAI témoin — et elles étaient jetées.
+
+    Mesurer « de combien ce film t'a déplacé » se compare aujourd'hui à des films tirés
+    uniformément dans le catalogue. Or l'oracle ne propose jamais uniformément : le match
+    est truqué. Le bon contrefactuel est « et si tu avais pris l'une des deux autres, ce
+    soir-là » — et il est IRRÉCUPÉRABLE après coup.
+
+    Mais attention au contresens que ce test verrouille aussi : ne pas choisir n'est pas
+    rejeter (MANIFESTE §3). Elles ne doivent toucher ni le profil ni la répulsion.
+    """
+    from recommender.oracle import profil, repulsion
+    seeds = ids_from_titles(GRAINES)
+    sauve = aretes.lire_etat()
+    try:
+        aretes.poser_choix(seeds[0], "X", "connu", "un pari", ecartes=[seeds[1], seeds[2]])
+        att = aretes.en_attente()
+        check("les deux cartes écartées sont écrites",
+              att.get("ecartes") == [seeds[1], seeds[2]], str(att.get("ecartes")))
+        aretes.poser_choix(seeds[0], "X", "connu", None, ecartes=[seeds[0], seeds[1]])
+        check("le film choisi ne peut pas figurer parmi les écartés",
+              aretes.en_attente()["ecartes"] == [seeds[1]],
+              str(aretes.en_attente()["ecartes"]))
+    finally:
+        aretes.ecrire_etat(sauve)
+
+    # et surtout : une carte écartée ne compte NI comme aimée NI comme détestée
+    ars = [{"film_id": seeds[1], "valence": 0.8, "ecartes": [seeds[2], seeds[3]]}]
+    check("une carte écartée ne crée aucune répulsion", repulsion(ars) is None)
+    check("le profil ignore les écartées",
+          list(profil(seeds, ars)) == list(profil(seeds, [
+              {"film_id": seeds[1], "valence": 0.8}])))
+
+
+def test_les_rejets_ne_sortent_pas_du_cone():
+    """Détester des films ne doit pas envoyer le profil dans le vide.
+
+    La v1 entrait les rejets avec un poids NÉGATIF dans le barycentre. Les embeddings de
+    phrases sont anisotropes (cosinus moyen 0,293 entre deux films au hasard, centroïde
+    global de norme 0,540) : l'opposé d'un vecteur n'y est pas « le contraire du film »,
+    c'est une zone morte. Mesuré, avec 5 rejets, la meilleure similarité du catalogue
+    tombait de 0,769 à 0,090 — plus rien ne ressemblait à personne, et l'oracle servait
+    quand même trois cartes avec des arguments assurés.
+    """
+    import numpy as np
+    from recommender.oracle import GAMMA_REPULSION, profil, repulsion
+    from recommender.recommend import _E, _unit
+    seeds = ids_from_titles(GRAINES)
+    mu = _unit(_E.mean(axis=0))
+
+    p0 = profil(seeds, [])
+    base = float(p0 @ mu)
+    detestes = [{"film_id": i, "valence": -1.0} for i in ids_from_titles(
+        ["Toy Story", "Shrek", "Frozen", "Cars", "The Smurfs"])]
+    if not detestes:
+        return
+    p = profil(seeds, detestes)
+    check(f"le pôle d'attraction ne bouge pas d'un iota ({base:.3f})",
+          abs(float(p @ mu) - base) < 1e-9, f"{float(p @ mu):.3f} != {base:.3f}")
+
+    s = _E @ p
+    r = repulsion(detestes)
+    check("les rejets forment bien un pôle séparé", r is not None)
+    s = s - GAMMA_REPULSION * np.clip(_E @ r, 0, None)
+    check(f"le catalogue ressemble encore à quelqu'un (simMax {s.max():.3f})",
+          s.max() > 0.5, f"simMax={s.max():.3f} — profil hors du cône")
+
+    # et la répulsion doit VRAIMENT servir : les films proches des rejets reculent
+    sans = _E @ p
+    rang_sans = list(np.argsort(-sans))
+    rang_avec = list(np.argsort(-s))
+    proche_rejet = int(np.argmax(_E @ r))
+    check("un film proche de ce que tu détestes recule au classement",
+          rang_avec.index(proche_rejet) > rang_sans.index(proche_rejet),
+          f"{rang_sans.index(proche_rejet)} -> {rang_avec.index(proche_rejet)}")
+
+
 def test_derive_se_tait_sur_du_bruit():
     """LE test de la dérive : sur du hasard pur, elle ne doit rien raconter.
 
@@ -564,6 +641,8 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_empreinte, test_carte_du_gout,
+              test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
+              test_les_rejets_ne_sortent_pas_du_cone,
               test_derive_se_tait_sur_du_bruit, test_derive_ce_qui_reste,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")

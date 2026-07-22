@@ -207,6 +207,8 @@ class ChoixRequest(BaseModel):
     titre: str | None = None
     registre: str | None = None
     pari: str | None = None
+    # les deux autres cartes de la donne — gardées comme TÉMOIN, jamais comme rejets
+    ecartes: list[int] = []
 
 
 class RessentiRequest(BaseModel):
@@ -265,7 +267,8 @@ def api_oracle(seed: int | None = None):
 def api_choix(req: ChoixRequest):
     """« Ce soir, c'est celui-là. » Arme la serrure — les non-choisis ne sont PAS
     des rejets (MANIFESTE §3 : jamais en disliked_ids)."""
-    aretes.poser_choix(req.film_id, req.titre, req.registre, req.pari)
+    aretes.poser_choix(req.film_id, req.titre, req.registre, req.pari,
+                       ecartes=req.ecartes)
     return {"ok": True, "en_attente": aretes.en_attente()}
 
 
@@ -276,6 +279,11 @@ def api_ressenti(req: RessentiRequest):
     if len(texte) < 3:
         return Response(status_code=400, content=b"ressenti vide")
     extra = {"pari": req.pari, "pari_juste": req.pari_juste}
+    # on recopie les deux cartes écartées depuis la serrure : c'est la seule occasion de
+    # les attacher au ressenti, ensuite elles sont perdues
+    att = aretes.en_attente() or {}
+    if att.get("film_id") == req.film_id and att.get("ecartes"):
+        extra["ecartes"] = att["ecartes"]
     if req.corrige and req.corrige.strip() and req.corrige.strip() != texte:
         extra["corrige"] = req.corrige.strip()   # vue, à côté du brut — jamais à la place
     a = aretes.ajouter(req.film_id, texte, req.titre, req.registre, extra=extra)
