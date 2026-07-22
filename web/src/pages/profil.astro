@@ -1,141 +1,19 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MORDU — Mon profil</title>
-<link rel="stylesheet" href="mordu.css">
-<style>
-  .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:6px}
-  .bloc{border:1px solid var(--line);background:var(--panel);padding:16px 17px}
-  .bloc .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--mut);display:flex;align-items:center;gap:7px;margin-bottom:11px}
-  .bloc .lbl::before{content:"";width:7px;height:7px;background:var(--red);flex:0 0 7px}
+---
+import Base from '../layouts/Base.astro';
+---
 
-  /* barres : la longueur dit le poids, sans jamais afficher un score */
-  .barre{margin-bottom:8px}
-  .barre .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
-  .barre .t span:last-child{font-family:var(--mono);font-size:10px;color:var(--mut)}
-  .barre .j{height:5px;background:#191d24}
-  .barre .j i{display:block;height:100%;background:var(--red)}
-
-  .nuage{display:flex;flex-wrap:wrap;gap:7px}
-  .nuage span{border:1px solid var(--line);padding:4px 9px;font-size:12.5px;color:var(--ink)}
-  .nuage span.fort{border-color:var(--red);color:#fff}
-  .liste{font-size:13.5px;line-height:1.75}
-  .liste .n{font-family:var(--mono);font-size:10px;color:var(--mut);margin-left:6px}
-
-  .voisins{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;margin-top:4px}
-  .voisins .v canvas{width:100%;aspect-ratio:2/3;display:block;background:#0a0c10;image-rendering:pixelated;
-    border:1px solid var(--line)}
-  .voisins .v .t{font-size:10.5px;line-height:1.2;margin-top:5px;color:var(--mut)}
-  .voisins .v .a{font-family:var(--mono);font-size:9px;color:var(--red)}
-
-  .arete{border-left:2px solid var(--red);padding:2px 0 2px 13px;margin-bottom:16px}
-  .arete .h{font-family:var(--disp);text-transform:uppercase;font-size:16px;letter-spacing:.02em}
-  .arete .d{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin:2px 0 6px}
-  .arete .x{font-size:13.5px;line-height:1.6;color:var(--ink);opacity:.9}
-  .vide{color:var(--mut);font-size:13px;line-height:1.6}
-  /* LA CARTE : plein cadre, tramée comme le reste — pas un scatter plot générique */
-  .carte{position:relative;border:1px solid var(--line);background:#07080A;margin-top:8px;
-    overflow:hidden}
-  .carte canvas{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair}
-  .carte .lg{position:absolute;left:0;right:0;bottom:0;padding:8px 11px;
-    background:linear-gradient(transparent,rgba(7,8,10,.92) 55%);
-    font-family:var(--mono);font-size:9.5px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
-  .carte .lg b{color:var(--ink);font-weight:400}
-  .carte .lg i{display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:-1px}
-  /* ANCHOR POSITIONING : l'infobulle s'accroche au canvas et se RETOURNE toute seule
-     quand elle déborderait — @position-try remplace le calcul manuel de bord. */
-  #cv{ anchor-name: --carte; }
-  .carte .tip{position:absolute;pointer-events:none;background:#0b0b0b;border:1px solid var(--red);
-    padding:4px 8px;font-size:11.5px;white-space:nowrap;transform:translate(-50%,-160%);opacity:0;
-    transition:opacity .12s}
-  @supports (anchor-name: --x){
-    .carte .tip{ position-anchor: --carte; position-try-fallbacks: flip-block, flip-inline; }
-  }
-  .carte .tip.on{opacity:1}
-  /* fiche d'inspection : cliquer un point de la carte */
-  .fiche{position:absolute;right:12px;top:12px;width:230px;background:rgba(8,9,11,.95);
-    border:1px solid var(--red);padding:11px 12px;font-size:12.5px;line-height:1.45;display:none}
-  .fiche.on{display:block}
-  .fiche canvas{width:100%;aspect-ratio:2/3;display:block;image-rendering:pixelated;
-    background:#0a0c10;margin-bottom:8px}
-  .fiche .t{font-family:var(--disp);text-transform:uppercase;font-size:16px;line-height:1.05}
-  .fiche .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
-  .fiche .x{position:absolute;right:6px;top:5px;cursor:pointer;color:var(--mut);
-    font-family:var(--mono);font-size:11px}
-  .fiche .x:hover{color:var(--red)}
-  .terrs{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px;margin-top:12px}
-  .terr{border:1px solid var(--line);padding:9px 11px;background:var(--panel)}
-  .terr .n{font-size:12.5px;line-height:1.3}
-  .terr .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
-  .terr.mien{border-color:var(--red)}
-  .terr.mien .m{color:var(--red)}
-  /* LE PORTRAIT — ce qui se LIT. L'empreinte est une signature ; ceci est le portrait. */
-  .portrait{border:1px solid var(--red);background:rgba(228,19,15,.04);padding:20px 22px;margin-bottom:16px}
-  .portrait .p{font-size:19px;line-height:1.5;color:var(--ink);max-width:60ch}
-  .portrait .p b{color:var(--red);font-weight:400}
-  .portrait .ax{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
-    gap:8px;margin-top:18px}
-  .portrait .a{border-left:2px solid var(--line);padding:3px 0 3px 10px}
-  .portrait .a.on{border-left-color:var(--red)}
-  .portrait .a .n{font-size:13px}
-  .portrait .a.on .n{color:var(--ink)} .portrait .a .n{color:var(--mut)}
-  .portrait .a .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:2px}
-  .portrait .a.on .m{color:var(--red)}
-  /* L'EMPREINTE : le vecteur profil (384D) rendu en glyphe */
-  .emp{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
-  .emp canvas{image-rendering:pixelated;border:1px solid var(--line);background:#0a0c10;
-    width:216px;height:auto}
-  .emp .txt{flex:1;min-width:190px;font-size:13px;line-height:1.6;color:var(--mut)}
-  .emp .txt b{color:var(--ink)}
-  .emp .fin{height:5px;background:#191d24;margin-top:9px}
-  .emp .fin i{display:block;height:100%;background:var(--red);transition:width .5s}
-  /* compléter les films de départ restés muets */
-  .muet{border:1px solid var(--red);background:rgba(228,19,15,.05);padding:16px 17px;margin-bottom:16px}
-  .muet .f{display:flex;gap:12px;align-items:flex-start;margin-top:12px}
-  .muet .f canvas{width:64px;height:96px;flex:0 0 64px;image-rendering:pixelated;background:#0a0c10}
-  .muet .f .z{flex:1}
-  .muet .f .t{font-family:var(--disp);text-transform:uppercase;font-size:15px}
-  .muet textarea{min-height:52px;margin-top:5px;font-size:13px}
-  .muet .cpt{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
-  .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="top">
-    <h1 class="brand"><a href="index.html">MORDU</a></h1>
-    <span class="status" id="status">connexion…</span>
-  </div>
-  <nav class="nav">
-    <a href="index.html">Accueil</a>
-    <a href="oracle.html">L'oracle</a>
-    <a href="profil.html" aria-current="page">Mon profil</a>
-    <a href="domaines.html">Domaines</a>
-  </nav>
+<Base titre="MORDU — Mon profil" actuel="profil" statut={true}>
   <h2 id="h"></h2>
   <p class="hint" id="intro"></p>
   <div id="vue"></div>
-</div>
 
-<script src="mordu.js"></script>
+</Base>
+
 <script>
-const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
-const st=document.getElementById("status"), vue=document.getElementById("vue");
-async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
-MORDU.fond();
+  import { API, GET, POST, esc, img } from '../lib/api.js';
+  const MORDU = (window as any).MORDU;
 
-const imgCache={};
-function img(path){
-  if(!path) return null;
-  if(imgCache[path]) return imgCache[path];
-  const im=new Image(); im.crossOrigin="anonymous";
-  im.src=`${API}/api/img?path=${encodeURIComponent(path)}&w=342`;
-  imgCache[path]=im; return im;
-}
-const esc=s=>String(s??"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+const st=document.getElementById("status"), vue=document.getElementById("vue");
 
 function barres(items, cle, val){
   const max=Math.max(...items.map(i=>i[val]),1);
@@ -485,5 +363,107 @@ function barres(items, cle, val){
        arête — et c'est la seule matière que MORDU possède et que personne d'autre n'a.</p>`;
 })();
 </script>
-</body>
-</html>
+
+<style is:global>
+  /* is:global : ces écrans construisent l'essentiel de leur DOM à l'exécution via
+     innerHTML. Les styles scopés d'Astro posent un attribut sur les éléments du TEMPLATE
+     seulement — les éléments injectés ne l'auraient jamais, et la moitié des règles
+     tomberait à côté. C'est le piège n°1 de cette migration. */
+
+  .grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:6px}
+  .bloc{border:1px solid var(--line);background:var(--panel);padding:16px 17px}
+  .bloc .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--mut);display:flex;align-items:center;gap:7px;margin-bottom:11px}
+  .bloc .lbl::before{content:"";width:7px;height:7px;background:var(--red);flex:0 0 7px}
+
+  /* barres : la longueur dit le poids, sans jamais afficher un score */
+  .barre{margin-bottom:8px}
+  .barre .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
+  .barre .t span:last-child{font-family:var(--mono);font-size:10px;color:var(--mut)}
+  .barre .j{height:5px;background:#191d24}
+  .barre .j i{display:block;height:100%;background:var(--red)}
+
+  .nuage{display:flex;flex-wrap:wrap;gap:7px}
+  .nuage span{border:1px solid var(--line);padding:4px 9px;font-size:12.5px;color:var(--ink)}
+  .nuage span.fort{border-color:var(--red);color:#fff}
+  .liste{font-size:13.5px;line-height:1.75}
+  .liste .n{font-family:var(--mono);font-size:10px;color:var(--mut);margin-left:6px}
+
+  .voisins{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;margin-top:4px}
+  .voisins .v canvas{width:100%;aspect-ratio:2/3;display:block;background:#0a0c10;image-rendering:pixelated;
+    border:1px solid var(--line)}
+  .voisins .v .t{font-size:10.5px;line-height:1.2;margin-top:5px;color:var(--mut)}
+  .voisins .v .a{font-family:var(--mono);font-size:9px;color:var(--red)}
+
+  .arete{border-left:2px solid var(--red);padding:2px 0 2px 13px;margin-bottom:16px}
+  .arete .h{font-family:var(--disp);text-transform:uppercase;font-size:16px;letter-spacing:.02em}
+  .arete .d{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin:2px 0 6px}
+  .arete .x{font-size:13.5px;line-height:1.6;color:var(--ink);opacity:.9}
+  .vide{color:var(--mut);font-size:13px;line-height:1.6}
+  /* LA CARTE : plein cadre, tramée comme le reste — pas un scatter plot générique */
+  .carte{position:relative;border:1px solid var(--line);background:#07080A;margin-top:8px;
+    overflow:hidden}
+  .carte canvas{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair}
+  .carte .lg{position:absolute;left:0;right:0;bottom:0;padding:8px 11px;
+    background:linear-gradient(transparent,rgba(7,8,10,.92) 55%);
+    font-family:var(--mono);font-size:9.5px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
+  .carte .lg b{color:var(--ink);font-weight:400}
+  .carte .lg i{display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:-1px}
+  /* ANCHOR POSITIONING : l'infobulle s'accroche au canvas et se RETOURNE toute seule
+     quand elle déborderait — @position-try remplace le calcul manuel de bord. */
+  #cv{ anchor-name: --carte; }
+  .carte .tip{position:absolute;pointer-events:none;background:#0b0b0b;border:1px solid var(--red);
+    padding:4px 8px;font-size:11.5px;white-space:nowrap;transform:translate(-50%,-160%);opacity:0;
+    transition:opacity .12s}
+  @supports (anchor-name: --x){
+    .carte .tip{ position-anchor: --carte; position-try-fallbacks: flip-block, flip-inline; }
+  }
+  .carte .tip.on{opacity:1}
+  /* fiche d'inspection : cliquer un point de la carte */
+  .fiche{position:absolute;right:12px;top:12px;width:230px;background:rgba(8,9,11,.95);
+    border:1px solid var(--red);padding:11px 12px;font-size:12.5px;line-height:1.45;display:none}
+  .fiche.on{display:block}
+  .fiche canvas{width:100%;aspect-ratio:2/3;display:block;image-rendering:pixelated;
+    background:#0a0c10;margin-bottom:8px}
+  .fiche .t{font-family:var(--disp);text-transform:uppercase;font-size:16px;line-height:1.05}
+  .fiche .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
+  .fiche .x{position:absolute;right:6px;top:5px;cursor:pointer;color:var(--mut);
+    font-family:var(--mono);font-size:11px}
+  .fiche .x:hover{color:var(--red)}
+  .terrs{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px;margin-top:12px}
+  .terr{border:1px solid var(--line);padding:9px 11px;background:var(--panel)}
+  .terr .n{font-size:12.5px;line-height:1.3}
+  .terr .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:4px}
+  .terr.mien{border-color:var(--red)}
+  .terr.mien .m{color:var(--red)}
+  /* LE PORTRAIT — ce qui se LIT. L'empreinte est une signature ; ceci est le portrait. */
+  .portrait{border:1px solid var(--red);background:rgba(228,19,15,.04);padding:20px 22px;margin-bottom:16px}
+  .portrait .p{font-size:19px;line-height:1.5;color:var(--ink);max-width:60ch}
+  .portrait .p b{color:var(--red);font-weight:400}
+  .portrait .ax{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+    gap:8px;margin-top:18px}
+  .portrait .a{border-left:2px solid var(--line);padding:3px 0 3px 10px}
+  .portrait .a.on{border-left-color:var(--red)}
+  .portrait .a .n{font-size:13px}
+  .portrait .a.on .n{color:var(--ink)} .portrait .a .n{color:var(--mut)}
+  .portrait .a .m{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-top:2px}
+  .portrait .a.on .m{color:var(--red)}
+  /* L'EMPREINTE : le vecteur profil (384D) rendu en glyphe */
+  .emp{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .emp canvas{image-rendering:pixelated;border:1px solid var(--line);background:#0a0c10;
+    width:216px;height:auto}
+  .emp .txt{flex:1;min-width:190px;font-size:13px;line-height:1.6;color:var(--mut)}
+  .emp .txt b{color:var(--ink)}
+  .emp .fin{height:5px;background:#191d24;margin-top:9px}
+  .emp .fin i{display:block;height:100%;background:var(--red);transition:width .5s}
+  /* compléter les films de départ restés muets */
+  .muet{border:1px solid var(--red);background:rgba(228,19,15,.05);padding:16px 17px;margin-bottom:16px}
+  .muet .f{display:flex;gap:12px;align-items:flex-start;margin-top:12px}
+  .muet .f canvas{width:64px;height:96px;flex:0 0 64px;image-rendering:pixelated;background:#0a0c10}
+  .muet .f .z{flex:1}
+  .muet .f .t{font-family:var(--disp);text-transform:uppercase;font-size:15px}
+  .muet textarea{min-height:52px;margin-top:5px;font-size:13px}
+  .muet .cpt{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
+  .jauge{font-family:var(--disp);font-size:40px;line-height:1;text-shadow:2px 2px 0 var(--red)}
+
+</style>

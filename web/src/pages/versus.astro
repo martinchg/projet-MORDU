@@ -1,79 +1,23 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MORDU — onboarding « ça ou ça »</title>
-<style>
-  :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12); --red:#E4130F; --green:#3FA45A;
-    --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif; --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
-    --mono:"SF Mono",ui-monospace,Menlo,monospace; }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-  .wrap{max-width:920px;margin:0 auto;padding:24px 20px 60px}
-  .top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .brand{font-family:var(--disp);font-size:40px;letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px 0 var(--red);margin:0}
-  .status{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line)}
-  .status.ok{color:var(--green);border-color:var(--green)} .status.ko{color:var(--red);border-color:var(--red)}
+---
+import Base from '../layouts/Base.astro';
+---
 
-  /* onboarding */
-  .prompt{font-family:var(--disp);text-transform:uppercase;font-size:clamp(26px,4vw,40px);letter-spacing:.01em;text-shadow:2px 2px 0 var(--red);margin:30px 0 4px}
-  .progress{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
-  .bar{height:3px;background:#20242a;margin:10px 0 22px}
-  .bar i{display:block;height:100%;background:var(--red);transition:width .3s}
-  .versus{display:flex;gap:14px;align-items:stretch}
-  .pick{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:transform .14s,border-color .14s;text-align:left}
-  .pick:hover{transform:translateY(-5px);border-color:var(--red)}
-  .pick:focus-visible{outline:2px solid var(--red);outline-offset:2px}
-  .pick .art{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#111}
-  .pick .cap{padding:12px 12px 14px}
-  .pick .t{font-family:var(--disp);text-transform:uppercase;font-size:18px;line-height:1.02;text-shadow:1.5px 1.5px 0 var(--red)}
-  .pick .y{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:4px}
-  .vs{align-self:center;font-family:var(--disp);color:var(--red);font-size:22px;flex:0 0 auto}
-  .skip{display:block;margin:22px auto 0;background:none;border:0;color:var(--mut);font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-decoration:underline}
-  .skip:hover{color:var(--ink)}
+<Base titre="MORDU — Versus (enterré)" actuel="versus" statut={false}>
 
-  /* résultats */
-  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.02em;font-size:24px;text-shadow:2px 2px 0 var(--red);margin:28px 0 4px}
-  .hint{color:var(--mut);font-size:13px;margin:0 0 16px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
-  .card{background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:transform .14s,border-color .14s}
-  .card:hover{transform:translateY(-4px);border-color:var(--red)}
-  .card .art{aspect-ratio:2/3;width:100%;object-fit:cover;display:block;background:#111}
-  .card canvas.art{image-rendering:pixelated}
-  .card .body{padding:8px 10px 11px}
-  .card .t{font-family:var(--disp);text-transform:uppercase;font-size:14px;line-height:1.02;text-shadow:1.5px 1.5px 0 var(--red)}
-  .card .y{font-family:var(--mono);font-size:10px;color:var(--mut);margin:3px 0 4px}
-  .card .imdb{font-family:var(--mono);font-size:10px;color:#E0A93A;margin:0 0 6px}
-  .card .imdb b{color:#E0A93A;font-weight:700}
-  .card .score{height:4px;background:#20242a} .card .score i{display:block;height:100%;background:var(--red)}
-  .card .sv{font-family:var(--mono);font-size:10px;color:var(--red);margin-top:4px}
-  .btn{background:var(--red);color:#0b0b0b;border:0;font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:16px;padding:11px 20px;cursor:pointer;margin-top:8px}
-  .btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
-  .banner{padding:14px 16px;border:1px solid var(--red);font-size:14px;line-height:1.5;background:rgba(228,19,15,.08);margin-top:16px}
-  .banner code{font-family:var(--mono);color:var(--red)}
-  .empty{color:var(--mut);font-size:14px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="top">
-    <h1 class="brand">MORDU</h1>
-    <span class="status" id="status">connexion…</span>
-  </div>
   <div id="app"><p class="empty">…</p></div>
-</div>
+
+</Base>
 
 <script>
-const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+  import { API, GET, POST, esc, img } from '../lib/api.js';
+  const MORDU = (window as any).MORDU;
+
 const N_PAIRS = 7;
 let pairs=[], cur=0, liked=[], disliked=[];
 
 const statusEl=document.getElementById("status");
 const app=document.getElementById("app");
 function setStatus(ok,txt){ statusEl.className="status "+(ok?"ok":"ko"); statusEl.textContent=txt; }
-
-async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
-async function POST(p,b){ const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
 
 function apiDown(){
   setStatus(false,"API hors ligne");
@@ -177,5 +121,59 @@ async function start(){
 }
 start();
 </script>
-</body>
-</html>
+
+<style is:global>
+  /* is:global : ces écrans construisent l'essentiel de leur DOM à l'exécution via
+     innerHTML. Les styles scopés d'Astro posent un attribut sur les éléments du TEMPLATE
+     seulement — les éléments injectés ne l'auraient jamais, et la moitié des règles
+     tomberait à côté. C'est le piège n°1 de cette migration. */
+
+  :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12); --red:#E4130F; --green:#3FA45A;
+    --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif; --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,Menlo,monospace; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 20px 60px}
+  .top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{font-family:var(--disp);font-size:40px;letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px 0 var(--red);margin:0}
+  .status{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line)}
+  .status.ok{color:var(--green);border-color:var(--green)} .status.ko{color:var(--red);border-color:var(--red)}
+
+  /* onboarding */
+  .prompt{font-family:var(--disp);text-transform:uppercase;font-size:clamp(26px,4vw,40px);letter-spacing:.01em;text-shadow:2px 2px 0 var(--red);margin:30px 0 4px}
+  .progress{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
+  .bar{height:3px;background:#20242a;margin:10px 0 22px}
+  .bar i{display:block;height:100%;background:var(--red);transition:width .3s}
+  .versus{display:flex;gap:14px;align-items:stretch}
+  .pick{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:transform .14s,border-color .14s;text-align:left}
+  .pick:hover{transform:translateY(-5px);border-color:var(--red)}
+  .pick:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+  .pick .art{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#111}
+  .pick .cap{padding:12px 12px 14px}
+  .pick .t{font-family:var(--disp);text-transform:uppercase;font-size:18px;line-height:1.02;text-shadow:1.5px 1.5px 0 var(--red)}
+  .pick .y{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:4px}
+  .vs{align-self:center;font-family:var(--disp);color:var(--red);font-size:22px;flex:0 0 auto}
+  .skip{display:block;margin:22px auto 0;background:none;border:0;color:var(--mut);font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;text-decoration:underline}
+  .skip:hover{color:var(--ink)}
+
+  /* résultats */
+  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.02em;font-size:24px;text-shadow:2px 2px 0 var(--red);margin:28px 0 4px}
+  .hint{color:var(--mut);font-size:13px;margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:transform .14s,border-color .14s}
+  .card:hover{transform:translateY(-4px);border-color:var(--red)}
+  .card .art{aspect-ratio:2/3;width:100%;object-fit:cover;display:block;background:#111}
+  .card canvas.art{image-rendering:pixelated}
+  .card .body{padding:8px 10px 11px}
+  .card .t{font-family:var(--disp);text-transform:uppercase;font-size:14px;line-height:1.02;text-shadow:1.5px 1.5px 0 var(--red)}
+  .card .y{font-family:var(--mono);font-size:10px;color:var(--mut);margin:3px 0 4px}
+  .card .imdb{font-family:var(--mono);font-size:10px;color:#E0A93A;margin:0 0 6px}
+  .card .imdb b{color:#E0A93A;font-weight:700}
+  .card .score{height:4px;background:#20242a} .card .score i{display:block;height:100%;background:var(--red)}
+  .card .sv{font-family:var(--mono);font-size:10px;color:var(--red);margin-top:4px}
+  .btn{background:var(--red);color:#0b0b0b;border:0;font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:16px;padding:11px 20px;cursor:pointer;margin-top:8px}
+  .btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+  .banner{padding:14px 16px;border:1px solid var(--red);font-size:14px;line-height:1.5;background:rgba(228,19,15,.08);margin-top:16px}
+  .banner code{font-family:var(--mono);color:var(--red)}
+  .empty{color:var(--mut);font-size:14px}
+
+</style>

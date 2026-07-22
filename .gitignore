@@ -43,3 +43,8 @@ _standalone.html
 _carte.npz
 _carte_pacmap.npy
 _ordre_dims.npy
+
+# --- front Astro
+web/node_modules/
+web/dist/
+web/.astro/

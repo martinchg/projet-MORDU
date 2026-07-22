@@ -9,10 +9,33 @@ data/ML). Détail produit dans `README.md` ; moteur de reco dans `ROADMAP-cervea
 ```
 backend/              FastAPI (Python). API + moteur de reco (voir ROADMAP-cerveau.md).
 backend/recommender/  Moteur de reco : ingest.py -> embed.py -> recommend.py (data/ git-ignoré).
-mobile/               App Expo / React Native (cible réelle).
+web/                  LE PRODUIT. Astro (multi-pages statique). `npm run dev` -> :4321
+mobile/               App Expo — ABANDONNÉE (voir ci-dessous). Ne pas s'y fier.
 design/dither/        Maquette de direction artistique « dither » (voir son README).
 ROADMAP-cerveau.md    Plan du moteur de reco (content-based, embeddings + cosinus), jalons J0→J5.
 ```
+
+## La cible, tranchée le 22/07 — MORDU est une APP WEB
+
+Ce fichier annonçait « mobile/ — app Expo (cible réelle) ». C'était faux depuis des jours :
+`mobile/App.js` fait 104 lignes, contient un tableau de films **écrits en dur**, ne parle
+pas à l'API et n'a pas bougé depuis le 17/07. Pendant ce temps un dossier nommé
+`design/webclient` — donc une *maquette* — était devenu le produit par accumulation.
+
+La contradiction est levée : **le web EST la cible**. Le front vit dans `web/`, plus dans
+`design/`, et il est monté sous Astro.
+
+**Pourquoi Astro et pas React.** Le produit est multi-pages par nature (un écran = un
+moment du rituel) et son meilleur détail visuel est la View Transition INTER-DOCUMENTS
+native : les pages morphent au niveau du navigateur, sans routeur JS. Un framework SPA
+l'aurait remplacée par le sien. Astro sort du HTML statique, n'envoie aucun JS de
+framework, et apporte ce qui manquait vraiment — le symptôme qui a déclenché la migration
+n'était pas « c'est du HTML », c'était la **duplication** : la barre de navigation existait
+en 5 exemplaires, `GET` était recopié 5 fois, le chargeur d'affiches 4 fois. En une seule
+journée cette barre a été éditée quatre fois, avec un lien mort oublié à chaque tour.
+
+On n'utilise PAS `<ClientRouter />` : il ferait basculer le site en navigation SPA et
+écraserait justement la View Transition native.
 
 ## Direction artistique (figée)
 

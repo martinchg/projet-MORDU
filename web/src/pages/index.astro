@@ -1,0 +1,126 @@
+---
+import Nav from '../components/Nav.astro';
+import '../lib/mordu.css';
+---
+
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MORDU</title>
+  <script is:inline src="/mordu.js"></script>
+</head>
+<body>
+<div class="wrap accueil">
+  <h1 class="brand" id="marque">MORDU</h1>
+  <p class="thse">MORDU ne te montre pas un catalogue. Il te tend <b>trois films</b> — trois
+    directions, trois arguments. Tu ne choisis pas un film parmi des milliers :
+    tu déclares ton <b>envie du soir</b>.</p>
+  <span class="status" id="status">connexion…</span>
+
+  <Nav actuel="accueil" />
+
+  <h2>Le rituel</h2>
+  <a class="route apparait" href="/oracle">
+    <div class="t">L'oracle <span class="tag">le cœur</span></div>
+    <div class="d">Trois cartes aux axes orthogonaux, affiches tramées, arguments lisibles.
+      Tu choisis une direction, le film se révèle — puis tu racontes ce qu'il t'en reste.
+      C'est ce ressenti qui débloque le tirage suivant.</div>
+  </a>
+
+  <a class="route apparait" href="/profil">
+    <div class="t">Mon profil</div>
+    <div class="d">Ce que l'oracle a compris de toi : tes motifs, tes genres, et surtout
+      les mots que tu emploies quand tu racontes un film. Recalculé à chaque visite depuis
+      tes arêtes — rien n'est figé.</div>
+  </a>
+
+  <h2>Les annexes</h2>
+  <a class="route apparait" href="/domaines">
+    <div class="t">Domaines</div>
+    <div class="d">Réalisateurs, acteurs et studios pixelisés : chacun se révèle net à mesure
+      que tu vois ses films essentiels. Ici le canon est visible ; dans l'oracle il reste un
+      ingrédient invisible de l'arbitrage.</div>
+  </a>
+  <a class="route mineur apparait" href="/versus">
+    <div class="t">Onboarding « ça ou ça » <span class="tag mort">enterré</span></div>
+    <div class="d">L'ancien écran de préférences par paires. Conservé comme trace : le
+      manifeste l'a écarté parce qu'un choix forcé entre deux films qu'on aime tous les deux
+      fabrique un faux rejet.</div>
+  </a>
+
+  <h2>Sous le capot</h2>
+  <a class="route mineur apparait" id="docs" href="#">
+    <div class="t">API — documentation interactive</div>
+    <div class="d">Tous les endpoints, essayables directement : l'oracle, la serrure,
+      les arêtes, le catalogue.</div>
+    <div class="u" id="docsurl">/docs</div>
+  </a>
+
+  <div class="note" id="aide"></div>
+</div>
+
+<script>
+  import { API, GET } from '../lib/api.js';
+
+  const M = (window as any).MORDU;
+  M.fond();
+  M.resoudreTexte(document.getElementById('marque'), 'MORDU', { duree: 800 });
+
+  const st = document.getElementById('status')!;
+  (document.getElementById('docs') as HTMLAnchorElement).href = API + '/docs';
+  document.getElementById('docsurl')!.textContent = API + '/docs';
+
+  try {
+    const [h, e] = await Promise.all([GET('/api/health'), GET('/api/etat')]);
+    st.className = 'status ok';
+    const attente = e.en_attente ? ` · en attente : ${e.en_attente.titre}` : '';
+    st.textContent =
+      `oracle en ligne · ${h.films} films · ${e.aretes} arête${e.aretes > 1 ? 's' : ''}${attente}`;
+    document.getElementById('aide')!.innerHTML = e.en_attente
+      ? `Un film attend ton ressenti (<b>${e.en_attente.titre}</b>) — l'oracle reste bloqué
+         tant que tu ne l'as pas raconté. C'est la serrure, et c'est voulu.`
+      : (e.aretes || (e.graines || []).length
+        ? `Pour repartir de zéro : <code>rm backend/recommender/data/etat.json backend/recommender/data/aretes.jsonl</code>`
+        : `Premier lancement : l'oracle va te demander trois films que tu as adorés.`);
+  } catch (err) {
+    st.className = 'status ko';
+    st.textContent = 'API hors ligne';
+    document.getElementById('aide')!.innerHTML =
+      `L'API ne répond pas sur <code>${API}</code>. Lance-la :<br>
+       <code>cd backend &amp;&amp; uvicorn main:app --reload</code>`;
+  }
+</script>
+
+<style is:global>
+  /* is:global DÉLIBÉRÉMENT, et c'est le piège n°1 de cette migration : Astro scope les
+     styles en posant un attribut sur les éléments du TEMPLATE. Or ces écrans construisent
+     l'essentiel de leur DOM à l'exécution via innerHTML — ces éléments-là n'auraient
+     jamais l'attribut, et la moitié des règles ne s'appliquerait pas. */
+  .accueil{max-width:860px;padding:34px 20px 70px}
+  .accueil .brand{font-size:64px;text-shadow:4px 4px 0 var(--red);margin:0 0 6px;line-height:.95}
+  .thse{color:var(--mut);font-size:14.5px;line-height:1.6;max-width:56ch;margin:0 0 22px}
+  .thse b{color:var(--ink)}
+  .accueil .status{display:inline-block;margin-bottom:26px}
+  .accueil h2{font-size:17px;color:var(--mut);margin:30px 0 12px;padding-left:0}
+  .accueil h2::before{display:none}
+  a.route{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
+    background:var(--panel);padding:16px 18px;margin-bottom:11px;
+    transition:border-color .15s,transform .15s}
+  a.route:hover{border-color:var(--red);transform:translateX(3px)}
+  a.route .t{font-family:var(--disp);text-transform:uppercase;font-size:21px;line-height:1.05;
+    display:flex;align-items:center;gap:9px}
+  a.route .t::before{content:"";width:9px;height:9px;background:var(--red);flex:0 0 9px}
+  a.route .d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:7px}
+  a.route .u{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:8px;opacity:.7}
+  a.route.mineur .t{font-family:var(--sans);font-size:15px;text-transform:none;font-weight:600}
+  a.route.mineur .t::before{width:7px;height:7px;flex:0 0 7px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+    text-transform:uppercase;padding:2px 6px;background:var(--red);color:#0b0b0b;
+    margin-left:8px;vertical-align:2px}
+  .tag.mort{background:#2a2d33;color:var(--mut)}
+  @media(max-width:600px){ .accueil .brand{font-size:44px} .accueil{padding:22px 15px 50px} }
+</style>
+</body>
+</html>

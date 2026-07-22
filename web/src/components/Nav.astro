@@ -1,0 +1,25 @@
+---
+/* LA BARRE DE NAVIGATION — elle existait en cinq exemplaires.
+ *
+ * C'est le symptôme qui a déclenché la migration : ajouter un écran voulait dire éditer
+ * cinq fichiers, et en retirer un aussi. Dans la seule journée du 22/07 j'ai touché cette
+ * barre quatre fois, et laissé un lien mort derrière moi à chaque tour.
+ */
+interface Props {
+  actuel?: string;
+}
+const { actuel } = Astro.props;
+
+const ECRANS = [
+  { href: '/', cle: 'accueil', nom: 'Accueil' },
+  { href: '/oracle', cle: 'oracle', nom: "L'oracle" },
+  { href: '/profil', cle: 'profil', nom: 'Mon profil' },
+  { href: '/domaines', cle: 'domaines', nom: 'Domaines' },
+];
+---
+
+<nav class="nav">
+  {ECRANS.map((e) => (
+    <a href={e.href} aria-current={actuel === e.cle ? 'page' : undefined}>{e.nom}</a>
+  ))}
+</nav>

@@ -1,71 +1,8 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MORDU — Domaines</title>
-<link rel="stylesheet" href="mordu.css">
-<style>
-  :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12); --red:#E4130F; --green:#3FA45A;
-    --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif; --sans:-apple-system,"Helvetica Neue",Arial,sans-serif; --mono:"SF Mono",ui-monospace,Menlo,monospace; }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 60px}
-  .top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .brand{font-family:var(--disp);font-size:40px;letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px 0 var(--red);margin:0}
-  .status{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line)}
-  .status.ok{color:var(--green);border-color:var(--green)} .status.ko{color:var(--red);border-color:var(--red)}
-  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.03em;font-size:24px;margin:24px 0 4px;position:relative;padding-left:15px}
-  h2::before{content:"";position:absolute;left:0;top:.14em;bottom:.16em;width:4px;background:var(--red)}
-  .hint{color:var(--mut);font-size:13px;margin:0 0 16px;max-width:60ch}
-  .filters{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
-  .filters button{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border:1px solid var(--line);color:var(--mut)}
-  .filters button[aria-pressed="true"]{border-color:var(--red);color:#fff;background:#150f0f}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:16px}
-  .dom{cursor:pointer;transition:transform .14s}
-  .dom:hover{transform:translateY(-4px)}
-  .dom .frame{position:relative;aspect-ratio:3/4;overflow:hidden;background:#0a0c10;border:1px solid var(--line)}
-  .dom canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
-  .dom .tag{position:absolute;left:6px;top:6px;font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#0b0b0b;background:var(--red);padding:2px 5px}
-  .dom .name{font-family:var(--disp);text-transform:uppercase;font-size:15px;line-height:1.02;margin-top:8px;text-shadow:1.5px 1.5px 0 var(--red)}
-  .dom .m{height:4px;background:#20242a;margin-top:5px}
-  .dom .m i{display:block;height:100%;background:var(--red)}
-  .dom .mv{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
-  .dom.done .mv{color:var(--green)}
-  .empty{color:var(--mut);font-size:14px}
-  .banner{padding:14px 16px;border:1px solid var(--red);font-size:14px;line-height:1.5;background:rgba(228,19,15,.08);margin-top:16px}
-  .banner code{font-family:var(--mono);color:var(--red)}
-  /* modal */
-  .modal{position:fixed;inset:0;background:rgba(4,5,6,.86);display:none;align-items:flex-start;justify-content:center;overflow:auto;z-index:50;padding:30px 16px}
-  .modal.on{display:flex}
-  .sheet{background:var(--panel);border:1px solid var(--line);max-width:720px;width:100%;padding:22px}
-  .sheet h3{font-family:var(--disp);text-transform:uppercase;font-size:26px;text-shadow:2px 2px 0 var(--red);margin:0}
-  .sheet .sub{color:var(--mut);font-size:12px;font-family:var(--mono);margin:4px 0 16px}
-  .films{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
-  .film{cursor:pointer;position:relative}
-  .film img,.film .ph{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#111;border:1px solid var(--line)}
-  .film.off img,.film.off .ph{opacity:.32;filter:grayscale(1)}
-  .film.seen{outline:2px solid var(--green);outline-offset:-2px}
-  .film .chk{position:absolute;right:5px;top:5px;font-family:var(--mono);font-size:9px;padding:2px 5px;background:#0b0b0b;color:var(--mut)}
-  .film.seen .chk{background:var(--green);color:#0b0b0b}
-  .film .ft{font-size:11px;margin-top:5px;line-height:1.1}
-  .film .fy{font-family:var(--mono);font-size:9px;color:var(--mut)}
-  .film.na{cursor:not-allowed}
-  .film.na .chk{display:none}
-  .close{all:unset;cursor:pointer;float:right;font-family:var(--mono);font-size:12px;color:var(--mut);border:1px solid var(--line);padding:6px 10px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="top">
-    <h1 class="brand">MORDU</h1>
-    <span class="status" id="status">connexion…</span>
-  </div>
-  <nav class="nav">
-    <a href="index.html">Accueil</a>
-    <a href="oracle.html">L'oracle</a>
-    <a href="profil.html">Mon profil</a>
-    <a href="domaines.html" aria-current="page">Domaines</a>
-  </nav>
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base titre="MORDU — Domaines" actuel="domaines" statut={true}>
   <h2>Domaines</h2>
   <p class="hint">Chaque acteur, réalisateur ou studio est <b>pixelisé</b> — il se <b>révèle net</b> à mesure que tu vois ses films essentiels (son « canon »). Clique un domaine, coche ce que t'as vu, et regarde-le se dé-pixeliser.</p>
   <div class="filters" id="filters">
@@ -75,13 +12,20 @@
     <button data-f="studio" aria-pressed="false">Studios</button>
   </div>
   <div id="grid"><p class="empty">…</p></div>
-</div>
 
+</Base>
+
+<!-- La modale vit HORS du `.wrap` — c'est une surcouche plein écran, elle ne doit pas
+     hériter de la largeur maximale ni du z-index du contenu. Elle avait été perdue au
+     portage (mon extraction s'arrêtait à la fermeture du wrap) : `modal` valait null,
+     et `modal.addEventListener` levait au chargement du module, ce qui tuait TOUT le
+     script de la page en silence — pas de grille, statut bloqué sur « connexion… ». -->
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 
-<script src="mordu.js"></script>
 <script>
-const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+  import { API, GET, POST, esc, img } from '../lib/api.js';
+  const MORDU = (window as any).MORDU;
+
 const LS = "mordu_vus";
 let domaines = [], filter = "all";
 let watched = new Set(JSON.parse(localStorage.getItem(LS) || "[]"));
@@ -96,19 +40,15 @@ function saveWatched(){ localStorage.setItem(LS, JSON.stringify([...watched])); 
 
 const statusEl=document.getElementById("status"), gridEl=document.getElementById("grid");
 function setStatus(ok,t){ statusEl.className="status "+(ok?"ok":"ko"); statusEl.textContent=t; }
-async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
 
 // --- rendu : moteur partagé (mordu.js) --------------------------------------------
 // Un seul contexte WebGL pour toute la grille : un contexte par vignette ferait
 // sauter la limite du navigateur (~16) dès la centaine de portraits.
-const imgCache={};
-function loadImg(path){
-  if(!path) return null;
-  if(imgCache[path]) return imgCache[path];
-  const im=new Image(); im.crossOrigin="anonymous";
-  im.src=`${API}/api/img?path=${encodeURIComponent(path)}&w=342`;
-  imgCache[path]=im; return im;
-}
+
+// loadImg vivait ici avec son propre cache ; c'est mot pour mot `img` de
+// lib/api.js. Une duplication de plus que la migration supprime.
+const loadImg = img;
+
 function mastery(d){ if(!d.catalogue_ids.length) return 0; const seen=d.catalogue_ids.filter(i=>watched.has(i)).length; return seen/d.catalogue_ids.length; }
 function paint(cv, path, m, type){
   const im=loadImg(path);
@@ -174,8 +114,6 @@ document.getElementById("filters").addEventListener("click",e=>{
   renderGrid();
 });
 
-MORDU.fond();
-
 (async()=>{
   try{
     const h=await GET("/api/health"); await fusionnerVus();
@@ -184,10 +122,68 @@ MORDU.fond();
     if(!domaines.length){ gridEl.innerHTML='<p class="empty">Aucun domaine — as-tu lancé <code>python recommender/canon.py</code> puis redémarré uvicorn ?</p>'; return; }
     renderGrid();
   }catch(e){
-    setStatus(false,"API hors ligne");
+    // On NOMME l'erreur au lieu de la maquiller. Ce catch a affiché « API hors ligne »
+    // pendant dix minutes alors que l'API répondait parfaitement : la vraie panne était un
+    // ReferenceError dans le rendu. Un catch qui attribue toute erreur à une seule cause
+    // est un mensonge à soi-même — le même défaut que les mesures purgées ce matin.
+    console.error("[domaines]", e);
+    setStatus(false, e instanceof TypeError ? "API hors ligne" : "erreur de rendu");
     gridEl.innerHTML=`<div class="banner"><b>API injoignable</b> sur <code>${API}</code>. Lance <code>uvicorn main:app --reload</code> et recharge.</div>`;
   }
 })();
 </script>
-</body>
-</html>
+
+<style is:global>
+  /* is:global : ces écrans construisent l'essentiel de leur DOM à l'exécution via
+     innerHTML. Les styles scopés d'Astro posent un attribut sur les éléments du TEMPLATE
+     seulement — les éléments injectés ne l'auraient jamais, et la moitié des règles
+     tomberait à côté. C'est le piège n°1 de cette migration. */
+
+  :root{ --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B; --line:rgba(255,255,255,.12); --red:#E4130F; --green:#3FA45A;
+    --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif; --sans:-apple-system,"Helvetica Neue",Arial,sans-serif; --mono:"SF Mono",ui-monospace,Menlo,monospace; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 60px}
+  .top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{font-family:var(--disp);font-size:40px;letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px 0 var(--red);margin:0}
+  .status{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line)}
+  .status.ok{color:var(--green);border-color:var(--green)} .status.ko{color:var(--red);border-color:var(--red)}
+  h2{font-family:var(--disp);font-weight:400;text-transform:uppercase;letter-spacing:.03em;font-size:24px;margin:24px 0 4px;position:relative;padding-left:15px}
+  h2::before{content:"";position:absolute;left:0;top:.14em;bottom:.16em;width:4px;background:var(--red)}
+  .hint{color:var(--mut);font-size:13px;margin:0 0 16px;max-width:60ch}
+  .filters{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+  .filters button{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border:1px solid var(--line);color:var(--mut)}
+  .filters button[aria-pressed="true"]{border-color:var(--red);color:#fff;background:#150f0f}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:16px}
+  .dom{cursor:pointer;transition:transform .14s}
+  .dom:hover{transform:translateY(-4px)}
+  .dom .frame{position:relative;aspect-ratio:3/4;overflow:hidden;background:#0a0c10;border:1px solid var(--line)}
+  .dom canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+  .dom .tag{position:absolute;left:6px;top:6px;font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#0b0b0b;background:var(--red);padding:2px 5px}
+  .dom .name{font-family:var(--disp);text-transform:uppercase;font-size:15px;line-height:1.02;margin-top:8px;text-shadow:1.5px 1.5px 0 var(--red)}
+  .dom .m{height:4px;background:#20242a;margin-top:5px}
+  .dom .m i{display:block;height:100%;background:var(--red)}
+  .dom .mv{font-family:var(--mono);font-size:9px;color:var(--mut);margin-top:3px}
+  .dom.done .mv{color:var(--green)}
+  .empty{color:var(--mut);font-size:14px}
+  .banner{padding:14px 16px;border:1px solid var(--red);font-size:14px;line-height:1.5;background:rgba(228,19,15,.08);margin-top:16px}
+  .banner code{font-family:var(--mono);color:var(--red)}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(4,5,6,.86);display:none;align-items:flex-start;justify-content:center;overflow:auto;z-index:50;padding:30px 16px}
+  .modal.on{display:flex}
+  .sheet{background:var(--panel);border:1px solid var(--line);max-width:720px;width:100%;padding:22px}
+  .sheet h3{font-family:var(--disp);text-transform:uppercase;font-size:26px;text-shadow:2px 2px 0 var(--red);margin:0}
+  .sheet .sub{color:var(--mut);font-size:12px;font-family:var(--mono);margin:4px 0 16px}
+  .films{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
+  .film{cursor:pointer;position:relative}
+  .film img,.film .ph{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#111;border:1px solid var(--line)}
+  .film.off img,.film.off .ph{opacity:.32;filter:grayscale(1)}
+  .film.seen{outline:2px solid var(--green);outline-offset:-2px}
+  .film .chk{position:absolute;right:5px;top:5px;font-family:var(--mono);font-size:9px;padding:2px 5px;background:#0b0b0b;color:var(--mut)}
+  .film.seen .chk{background:var(--green);color:#0b0b0b}
+  .film .ft{font-size:11px;margin-top:5px;line-height:1.1}
+  .film .fy{font-family:var(--mono);font-size:9px;color:var(--mut)}
+  .film.na{cursor:not-allowed}
+  .film.na .chk{display:none}
+  .close{all:unset;cursor:pointer;float:right;font-family:var(--mono);font-size:12px;color:var(--mut);border:1px solid var(--line);padding:6px 10px}
+
+</style>

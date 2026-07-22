@@ -1,0 +1,48 @@
+---
+/* LA COQUILLE — tête du document, marque, navigation, fond tramé.
+ *
+ * Ces trente lignes étaient dupliquées dans chaque page. Elles vivent ici une fois.
+ *
+ * `mordu.js` est chargé en `is:inline` DÉLIBÉRÉMENT : le moteur visuel s'expose en global
+ * (`window.MORDU`) et les scripts de page en dépendent. Le laisser passer par le bundler
+ * d'Astro en ferait un module à portée close, et `MORDU` deviendrait introuvable. Un
+ * script classique en tête s'exécute aussi AVANT les scripts de module, qui sont différés
+ * — donc l'ordre est garanti sans rien orchestrer.
+ */
+import Nav from '../components/Nav.astro';
+import '../lib/mordu.css';
+
+interface Props {
+  titre: string;
+  actuel?: string;
+  statut?: boolean;
+}
+const { titre, actuel, statut = false } = Astro.props;
+---
+
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{titre}</title>
+  <script is:inline src="/mordu.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1 class="brand"><a href="/">MORDU</a></h1>
+      {statut && <span class="status" id="status">connexion…</span>}
+    </div>
+    <Nav actuel={actuel} />
+    <slot />
+  </div>
+
+  <script>
+    // Le fond tramé, sur toutes les pages. C'était un appel recopié partout ; il est ici.
+    // Cellules de 5 px et 18 % d'opacité : à 15 px et 72 %, c'était un motif qu'on LIT,
+    // en concurrence avec le texte. À cette échelle, c'est du grain qu'on sent.
+    (window as any).MORDU?.fond();
+  </script>
+</body>
+</html>
