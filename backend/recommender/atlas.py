@@ -46,7 +46,8 @@ from datetime import datetime, timezone
 import numpy as np
 
 from .carte import _LABELS, _N, _TERRITOIRES
-from .recommend import _ID2IDX, _movies, _votes
+from .oracle import profil
+from .recommend import _E, _ID2IDX, _movies, _votes
 
 # 48x32 = 1536 cellules. Mesuré : c'est la plus haute résolution où le continent se lit
 # encore comme une masse (70,7 % de cellules non vides) et où un pixel contient encore une
@@ -73,24 +74,62 @@ def _cellules():
 _CELL = _cellules()
 
 
-def _socle():
-    """Le continent : le catalogue entier, en trois paliers de densité.
+def _densite():
+    """Où il y a des films, tout court. Le vide n'est pas une opinion."""
+    n = np.bincount(_CELL, minlength=LARGEUR * HAUTEUR)
+    return n > 0
 
-    Identique pour tout le monde — il n'affirme rien sur personne. C'est ce qui évite
-    l'écran noir du premier jour : dès la première visite il y a un monde, et tes films
-    sont des clairières dedans.
+
+_PLEINES = _densite()
+
+# les cellules d'une même case, précalculées une fois : sinon on refait 1536 `np.where`
+# à chaque requête
+_PAR_CELL = [np.where(_CELL == c)[0] for c in range(LARGEUR * HAUTEUR)]
+
+
+def _relief(p):
+    """LE RELIEF — l'affinité de chaque endroit du cinéma avec TON goût.
+
+    C'est ce qui manquait, et c'est ce qui rend la carte dense au lieu de vide. Avant,
+    l'atlas n'affichait que les cellules touchées : 5 taches au début, 40 après un an —
+    2,5 % de la grille. Une carte au trésor sans carte.
+
+    Ici les 1086 cellules habitées portent toutes une valeur : `cos(ton profil, le centre
+    de la cellule)`. Autrement dit, on ne montre plus seulement où tu es allé, on montre
+    **à quoi ressemble le monde vu de ta position**. C'est exactement le calcul que fait
+    l'oracle pour tirer ses cartes, rendu visible — donc rien de neuf n'est affirmé.
+
+    Trois choses vérifiées avant de l'afficher :
+
+      LISSE       corrélation entre cellules voisines 0,557, contre 0,006 après mélange
+                  aléatoire. Le relief forme de vraies régions, pas du poivre et sel.
+      SENSIBLE    ajouter 3 polars déplace 59,6 % des cellules d'un palier ; 3 comédies,
+                  61,9 % — et pas les mêmes. Le relief RÉAGIT, et différemment selon quoi.
+      HONNÊTE     ajouter des arêtes qui ne déplacent PAS le vecteur (colinéaires) change
+                  0,0 % des cellules, à 3, 9, 18 et 36 arêtes. C'est le test exact qui
+                  avait condamné la rampe de finesse de l'empreinte (82 % de la grille
+                  changeait au seul mouvement du compteur). Ici : zéro.
+
+    Et un cosinus est invariant par rotation — le relief passe donc aussi le test qui a
+    tué le glyphe.
     """
-    n = np.bincount(_CELL, minlength=LARGEUR * HAUTEUR).astype(float)
-    s = np.zeros_like(n, dtype=int)
-    pleines = n > 0
-    if pleines.any():
-        # log : quelques cellules très denses écraseraient tout le reste en linéaire
-        v = np.log1p(n[pleines])
-        s[pleines] = 1 + (v > np.median(v)).astype(int)     # paliers 1 et 2, 0 = océan
-    return s
-
-
-_SOCLE = _socle()
+    if p is None:
+        return None
+    sims = _E @ p
+    aff = np.full(LARGEUR * HAUTEUR, np.nan)
+    for c in range(LARGEUR * HAUTEUR):
+        idx = _PAR_CELL[c]
+        if len(idx):
+            aff[c] = sims[idx].mean()
+    ok = ~np.isnan(aff)
+    if not ok.any():
+        return None
+    lo, hi = np.nanpercentile(aff, 3), np.nanpercentile(aff, 97)
+    q = np.clip((aff - lo) / max(hi - lo, 1e-9), 0, 1)
+    # paliers 1 à 6 : on laisse 0 au vide et 7 à 10 aux endroits où tu es allé
+    out = np.zeros(LARGEUR * HAUTEUR, dtype=int)
+    out[ok] = 1 + np.floor(q[ok] * 5 + 0.5).astype(int)
+    return out
 
 
 def _phares(cell, k=3):
@@ -171,11 +210,11 @@ def atlas(graines, aretes):
         # goût : c'est 0,5^(âge / 30 jours) quantifié. Une seule sémantique, vraie par
         # construction — les arêtes sont horodatées et append-only.
         chaleur = 1.0 if age is None else 0.5 ** (age / DEMI_VIE_JOURS)
-        # PLANCHER À 3. Le socle occupe les paliers 0 à 2 ; une terre connue doit rester
-        # au-dessus de lui POUR TOUJOURS. Sans ce plancher, un film raconté il y a six
-        # mois retombait au palier 0 et redevenait indiscernable de l'océan — alors que tu
-        # y es allé. Ce qui s'éteint, c'est la braise ; ce n'est pas le souvenir.
-        palier = 3 + int(round(chaleur * (NIVEAUX - 1 - 3)))
+        # PLANCHER À 7. Le relief occupe les paliers 1 à 6 ; une terre où tu es allé doit
+        # rester au-dessus de lui POUR TOUJOURS. Sans ce plancher, un film raconté il y a
+        # six mois se noyait dans le relief et redevenait indiscernable d'un endroit où
+        # tu n'as jamais mis les pieds. Ce qui s'éteint, c'est la braise, pas le souvenir.
+        palier = 7 + int(round(chaleur * (NIVEAUX - 1 - 7)))
         cellules.append({
             "c": c,
             "n": int((_CELL == c).sum()),
@@ -188,11 +227,19 @@ def atlas(graines, aretes):
             "braise": bool(age is not None and age < DEMI_VIE_JOURS),
         })
 
+    relief = _relief(profil(graines, ars))
+    if relief is None:
+        relief = np.where(_PLEINES, 1, 0)
+
     return {
         "largeur": LARGEUR, "hauteur": HAUTEUR, "niveaux": NIVEAUX,
-        "socle": [int(x) for x in _SOCLE],
+        # LE RELIEF remplace l'ancien socle de densité. Celui-ci était identique pour
+        # tout le monde et n'affirmait rien ; il ne montrait donc rien non plus. Le
+        # relief, lui, est ton point de vue sur le catalogue — et il bouge quand ton
+        # goût bouge, et seulement quand il bouge (mesuré : 0,0 % sur le témoin).
+        "socle": [int(x) for x in relief],
         "cellules": cellules,
-        "cellules_pleines": int((_SOCLE > 0).sum()),
+        "cellules_pleines": int(_PLEINES.sum()),
         "films": len(_movies),
         # aucune part, aucun pourcentage, aucun comptage de territoires : mesuré, ces
         # phrases-là sortent 100 fois sur 100 sur des historiques tirés au hasard

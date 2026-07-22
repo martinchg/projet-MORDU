@@ -66,10 +66,11 @@ input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red)
   <a href="empreinte-evolution.html" aria-current="page">Ton atlas</a></nav>
 
 <h2>Ton atlas</h2>
-<p class="hint">Le cinéma entier, projeté sur un plan — et <b>les endroits où tu es allé</b>.
-Ce qui brille est récent, ce qui s'est éteint est ancien, et rien ne s'efface jamais.
-<span class="long">Tapote n'importe quelle tache : elle te dira quels films sont dedans et
-lequel des tiens l'a allumée.</span></p>
+<p class="hint">Le cinéma entier vu <b>depuis ta position</b> — le relief est l'affinité de
+chaque endroit avec ton goût — et par-dessus, <b>les endroits où tu es allé</b>. Ce qui
+brille est récent, ce qui s'est éteint est ancien, rien ne s'efface jamais.
+<span class="long">Tapote n'importe quelle tache&nbsp;: elle te dira quels films sont dedans
+et lequel des tiens l'a allumée.</span></p>
 
 <div id="tete" class="tete mut">…</div>
 
@@ -86,8 +87,9 @@ lequel des tiens l'a allumée.</span></p>
     </div>
     <div class="quand"><span id="ou">—</span><span id="cnt"></span></div>
     <div class="legende">
-      <span><i style="background:#16181C"></i>jamais approché</span>
-      <span><i id="lg-socle"></i>le catalogue</span>
+      <span><i style="background:#14161A"></i>aucun film ici</span>
+      <span><i id="lg-froid"></i>loin de ton goût</span>
+      <span><i id="lg-socle"></i>proche de ton goût</span>
       <span><i id="lg-vieux"></i>tu y es allé</span>
       <span><i style="background:#E82E28"></i>ce mois-ci</span>
     </div>
@@ -139,21 +141,25 @@ Promise.all([
   const ordre = A.cellules.map((c,i)=>i).sort((a,b)=>(dates[a]||"").localeCompare(dates[b]||""));
   const parCell = {}; A.cellules.forEach(c=>parCell[c.c]=c);
 
-  $("lg-socle").style.background = rgb(PAL[1]);
-  $("lg-vieux").style.background = rgb(PAL[4]);
+  $("lg-froid").style.background = rgb(PAL[1]);
+  $("lg-socle").style.background = rgb(PAL[6]);
+  $("lg-vieux").style.background = rgb(PAL[8]);
 
   function peindre(jusqu){
     const im=ctx.createImageData(W,H), d=im.data;
     // 1. LE SOCLE — le catalogue entier. Identique pour tout le monde : il n'affirme
     //    rien sur personne, et il évite l'écran noir du premier jour.
     A.socle.forEach((v,i)=>{
-      const c = v===0 ? [22,24,28] : PAL[v];      // 0 = océan, jamais un film
+      // v=0 : aucun film ici, c'est du vide et pas une opinion. v=1..6 : LE RELIEF,
+      // l'affinité de cet endroit du cinéma avec ton goût. C'est le calcul que fait
+      // l'oracle pour tirer ses cartes, rendu visible.
+      const c = v===0 ? [20,22,26] : PAL[v];
       d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
     });
     // 2. LES TERRES CONNUES, puis 3. LA BRAISE par-dessus
     ordre.slice(0, jusqu).forEach(k=>{
       const c=A.cellules[k], i=c.c;
-      const base = PAL[Math.min(PAL.length-3, c.palier)];
+      const base = PAL[Math.min(PAL.length-3, c.palier)];   // 7..8 = terres connues
       let col = base;
       if(c.braise){
         // le rouge est réservé au dernier mois, et il est TRAÇABLE : la cellule sait
@@ -216,7 +222,9 @@ Promise.all([
       f.className="fiche vide";
       f.innerHTML=`<div class="t" style="color:var(--mut)">tu n'es jamais allé là</div>
         <p style="margin:0;font-size:13px;color:var(--mut);line-height:1.55">
-        ${A.socle[i]>0 ? "Il y a des films ici, tu n'en as raconté aucun." :
+        ${A.socle[i]>0 ? `Il y a des films ici, tu n'en as raconté aucun.
+           ${A.socle[i]>=5? "Et pourtant c'est tout près de ce que tu aimes." :
+             A.socle[i]<=2? "C'est loin de ce que tu aimes — ça n'a rien d'un oubli." : ""}` :
                          "Il n'y a rien ici — c'est du vide, pas un oubli."}</p>`;
     }
   }

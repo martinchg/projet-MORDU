@@ -435,7 +435,10 @@ def test_atlas_chaque_pixel_a_une_cause():
     check("le socle couvre toute la grille",
           len(d["socle"]) == A.LARGEUR * A.HAUTEUR, str(len(d["socle"])))
     check("le socle laisse de l'océan", min(d["socle"]) == 0)
-    check("le socle reste SOUS les terres connues", max(d["socle"]) <= 2,
+    # LE RELIEF occupe les paliers 1 à 6 (0 = aucun film) ; les endroits où tu es allé
+    # occupent 7 à 10. Sans cette séparation stricte, une terre connue et ancienne se
+    # noierait dans le relief et deviendrait indiscernable d'un endroit jamais visité.
+    check("le relief reste SOUS les terres connues", max(d["socle"]) <= 6,
           str(max(d["socle"])))
 
     # RÈGLE DURE 1 : aucun pixel sans cause
@@ -443,7 +446,7 @@ def test_atlas_chaque_pixel_a_une_cause():
     for c in d["cellules"]:
         check(f"cellule {c['c']} : une cause nommée",
               c["cause"] and c["cause"]["film_id"] in tiens, str(c.get("cause")))
-        check(f"cellule {c['c']} : un palier au-dessus du socle", c["palier"] >= 3,
+        check(f"cellule {c['c']} : un palier au-dessus du relief", c["palier"] >= 7,
               str(c["palier"]))
     check(f"pas plus de cellules que de films touchés ({len(d['cellules'])})",
           len(d["cellules"]) <= len(seeds))
@@ -482,6 +485,24 @@ def test_atlas_chaque_pixel_a_une_cause():
               par_age[0]["palier"] > par_age[-1]["palier"])
         check("la braise est réservée au dernier mois",
               all(c["braise"] == (c["age_jours"] < A.DEMI_VIE_JOURS) for c in par_age))
+
+    # LE RELIEF est une fonction PURE du vecteur de goût. C'est le test exact qui avait
+    # condamné la rampe de finesse de l'empreinte : ajouter des arêtes qui laissent le
+    # vecteur colinéaire ne doit changer AUCUNE cellule. (L'empreinte en changeait 82 %.)
+    colin = [{"film_id": i, "valence": 0.8} for i in seeds]
+    r0 = A.atlas(seeds, [])["socle"]
+    for k in (1, 3, 6):
+        rk = A.atlas(seeds, colin * k)["socle"]
+        bouge = sum(1 for x, y in zip(r0, rk) if x != y)
+        check(f"le relief ignore le compteur ({len(seeds)*k} arêtes colinéaires, "
+              f"{bouge} cellules)", bouge == 0, str(bouge))
+    # …mais il RÉAGIT à un vrai déplacement du goût
+    autres = ids_from_titles(["Toy Story", "Shrek", "Frozen"])
+    if autres:
+        rr = A.atlas(seeds, [{"film_id": i, "valence": 0.9} for i in autres])["socle"]
+        bouge = sum(1 for x, y in zip(r0, rr) if x != y)
+        check(f"…et il réagit à un vrai déplacement ({bouge} cellules)", bouge > 100,
+              str(bouge))
 
     # RÈGLE DURE 3 : aucun pourcentage, aucun comptage de territoires dans la charge utile
     interdits = ("part", "pourcentage", "complet", "score", "territoires_visites")
