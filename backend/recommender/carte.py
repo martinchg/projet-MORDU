@@ -8,7 +8,7 @@ MONTRER ce que le moteur fait, donc de pouvoir lui faire confiance.
 Trois décisions, chacune mesurée :
 
 1. PaCMAP plutôt qu'une ACP. L'ACP ne conservait que 7,9 % des 10 plus proches voisins
-   (11,9 % de variance sur deux axes) : la carte mentait. PaCMAP monte à 25,2 % — 3,2x
+   (11,9 % de variance sur deux axes) : la carte mentait. PaCMAP monte à 10,9 % — 6,8x
    mieux — parce qu'il optimise ensemble des paires voisines, mi-proches et lointaines,
    là où t-SNE/UMAP ne gardent que le local et TriMap que le global.
 

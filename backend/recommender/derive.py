@@ -95,10 +95,14 @@ def _profil_recent(graines, aretes, maintenant):
             S += _E[_ID2IDX[i]] * 0.5 ** (age / DEMI_VIE_JOURS)
     for a in ars:
         i = a.get("film_id")
-        if i in _ID2IDX:
+        v = float(a.get("valence", 1.0))
+        # MÊME FILTRE QUE profil() : les rejets ne sont pas soustraits, ils forment un pôle
+        # à part. Sans ce `v > 0`, la braise décrivait un état que le moteur n'a jamais eu
+        # — mesuré à 12,05° d'écart dès UNE arête négative. Bug dormant tant que rien
+        # n'est détesté, armé au premier « je n'ai pas aimé » (valence -0,19).
+        if i in _ID2IDX and v > 0:
             age = (maintenant - _quand(a)).total_seconds() / 86400.0
-            S += (1.5 * float(a.get("valence", 1.0))
-                  * 0.5 ** (age / DEMI_VIE_JOURS)) * _E[_ID2IDX[i]]
+            S += (1.5 * v * 0.5 ** (age / DEMI_VIE_JOURS)) * _E[_ID2IDX[i]]
     return _unit(S) if S.any() else None
 
 
@@ -113,8 +117,9 @@ def _base(graines, aretes):
             S += _E[_ID2IDX[i]]
     for a in aretes or []:
         i = a.get("film_id")
-        if i in _ID2IDX:
-            S += (1.5 * float(a.get("valence", 1.0))) * _E[_ID2IDX[i]]
+        v = float(a.get("valence", 1.0))
+        if i in _ID2IDX and v > 0:      # même filtre que profil(), cf. _profil_recent
+            S += (1.5 * v) * _E[_ID2IDX[i]]
     return S
 
 

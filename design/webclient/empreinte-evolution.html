@@ -74,7 +74,8 @@ input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red)
 
 <h2>Ta dérive</h2>
 <p class="hint">Une grille, <b>deux âges</b>. En couleurs de nuit&nbsp;: tout ce que tu as
-raconté. En rouge&nbsp;: <b>là où ce que tu racontes en ce moment tire ailleurs</b>.
+raconté. En rouge&nbsp;: <b>combien ce que tu racontes en ce moment tire ailleurs</b>
+— la quantité, jamais l'endroit (voir la note en bas de page).
 <span class="long">Rien n'est simulé et rien n'est stocké — tes arêtes sont horodatées, donc
 l'histoire est déjà dans les données.</span></p>
 
@@ -162,7 +163,7 @@ fetch(API+"/api/evolution").then(r=>r.json()).then(D=>{
     t.className="tete";
     t.innerHTML=`<b>${D.n} ressentis écrits dans la même séance.</b> C'est une soirée, pas
       une trajectoire — et tant que le temps n'aura pas passé, je ne te raconterai rien.
-      La grille ci-dessous est ta signature complète ; elle ne porte aucune braise, parce
+      La grille ci-dessous est ton sceau ; elle ne porte aucune braise, parce
       qu'il n'y a rigoureusement rien à montrer.`;
   }else if(B && B.part>0){
     t.className="tete";

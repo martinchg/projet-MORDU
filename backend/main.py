@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from recommender.recommend import recommend, _movies, _E, _votes, _blocked, _ID2IDX
 from recommender.oracle import tirage
 from recommender import aretes
+from recommender import journal
 from recommender import relecture
 from recommender.profil_vue import construire as construire_profil
 from recommender.derive import derive as construire_derive
@@ -266,7 +267,24 @@ def api_oracle(seed: int | None = None):
 @app.post("/api/choix")
 def api_choix(req: ChoixRequest):
     """« Ce soir, c'est celui-là. » Arme la serrure — les non-choisis ne sont PAS
-    des rejets (MANIFESTE §3 : jamais en disliked_ids)."""
+    des rejets (MANIFESTE §3 : jamais en disliked_ids).
+
+    On JOURNALISE D'ABORD, on décide ensuite. `poser_choix()` écrase `en_attente` : un
+    second choix effaçait sans trace le film, le registre, le pari et surtout les deux
+    cartes écartées — que la docstring de cette même fonction déclare « impossibles à
+    reconstruire après coup ». L'événement est donc écrit avant toute vérification, y
+    compris quand la requête est refusée.
+    """
+    deja = aretes.en_attente()
+    if deja and deja.get("film_id") != req.film_id:
+        # une serrure est déjà armée sur un AUTRE film : on refuse, mais on garde trace
+        journal.ecrire("choix_refuse", film_id=req.film_id, titre=req.titre,
+                       registre=req.registre, pari=req.pari, ecartes=req.ecartes,
+                       bloque_par=deja.get("film_id"))
+        return Response(status_code=409,
+                        content=f"serrure déjà armée sur {deja.get('titre')}".encode())
+    journal.ecrire("choix", film_id=req.film_id, titre=req.titre,
+                   registre=req.registre, pari=req.pari, ecartes=req.ecartes)
     aretes.poser_choix(req.film_id, req.titre, req.registre, req.pari,
                        ecartes=req.ecartes)
     return {"ok": True, "en_attente": aretes.en_attente()}
@@ -278,15 +296,27 @@ def api_ressenti(req: RessentiRequest):
     texte = (req.texte or "").strip()
     if len(texte) < 3:
         return Response(status_code=400, content=b"ressenti vide")
+
+    # DEUX REFUS. Sans eux, un double envoi écrivait DEUX arêtes sur le même film, qui
+    # pesait alors deux fois dans le profil — et un journal append-only ne se dépollue
+    # pas. Le second refus attrape le cas où le front a dérivé du film réellement choisi.
+    att = aretes.en_attente() or {}
+    if not att:
+        return Response(status_code=409, content=b"aucune serrure armee")
+    if att.get("film_id") != req.film_id:
+        return Response(status_code=409,
+                        content=f"serrure armee sur {att.get('titre')}".encode())
+
     extra = {"pari": req.pari, "pari_juste": req.pari_juste}
     # on recopie les deux cartes écartées depuis la serrure : c'est la seule occasion de
     # les attacher au ressenti, ensuite elles sont perdues
-    att = aretes.en_attente() or {}
-    if att.get("film_id") == req.film_id and att.get("ecartes"):
+    if att.get("ecartes"):
         extra["ecartes"] = att["ecartes"]
     if req.corrige and req.corrige.strip() and req.corrige.strip() != texte:
         extra["corrige"] = req.corrige.strip()   # vue, à côté du brut — jamais à la place
     a = aretes.ajouter(req.film_id, texte, req.titre, req.registre, extra=extra)
+    journal.ecrire("vu", film_id=req.film_id, titre=req.titre,
+                   registre=req.registre, pari_juste=req.pari_juste)
     aretes.liberer()
     return {"ok": True, "arete": a, "total": len(aretes.toutes()),
             "palmares": aretes.palmares()}
@@ -320,6 +350,16 @@ def api_profil():
     return construire_profil(aretes.graines(), aretes.toutes(), aretes.palmares())
 
 
+@app.get("/api/journal")
+def api_journal():
+    """Ce qui s'est passé, dans l'ordre. Un registre, pas un score.
+
+    `taux_non_vu` reste nul sous 5 choix : avec deux soirées, un ratio n'est qu'une
+    anecdote déguisée en pourcentage.
+    """
+    return {"compteurs": journal.compteurs(), "evenements": journal.tous()[-50:]}
+
+
 @app.get("/api/evolution")
 def api_evolution():
     """TA dérive : l'empreinte rejouée à chaque état historique réel, plus les quatre
@@ -343,10 +383,22 @@ def api_renoncer():
     Or le manifeste dit qu'on ne punit que le SILENCE, pas l'attente. Renoncer est un
     état honnête : on libère la serrure sans écrire d'arête (rien à raconter), et le
     film redevient tirable plus tard.
+
+    ON L'ÉCRIT MAINTENANT. Cette route appelait `liberer()` et rien d'autre : zéro ligne
+    produite. Le taux de « révélé mais jamais regardé » était donc non mesurable PAR
+    CONSTRUCTION — et c'est justement le chiffre dont dépend la question de savoir s'il
+    faut une machine d'état du visionnage. On ne pouvait ni la trancher ni la tester.
+
+    Renoncer n'est PAS rejeter (§3) : cet événement n'entre ni dans `profil()` ni dans
+    `repulsion()`. C'est un registre, pas un signal de goût.
     """
     a = aretes.en_attente()
+    if a:
+        journal.ecrire("renonce", film_id=a.get("film_id"), titre=a.get("titre"),
+                       registre=a.get("registre"), ecartes=a.get("ecartes"),
+                       choisi_le=a.get("date"))
     aretes.liberer()
-    return {"ok": True, "libere": a}
+    return {"ok": True, "libere": a, "journal": journal.compteurs()}
 
 
 @app.get("/api/aretes")

@@ -374,7 +374,8 @@ function vueSerrure(a){
     const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
       registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige});
     if(r.palmares&&r.palmares.score!==null)
-      setStatus(true,`l'oracle te connaît à ${Math.round(r.palmares.score*10)}/10`);
+      // pas de score : cf. profil.html. On compte les paris scellés, on ne les note pas.
+      setStatus(true,`${r.palmares.paris} pari${r.palmares.paris>1?"s":""} scellé${r.palmares.paris>1?"s":""}`);
     router();
   });
 }

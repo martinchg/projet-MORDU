@@ -181,7 +181,7 @@ function barres(items, cle, val){
   vue.innerHTML=`
     <div id="muet"></div>
     <h2 id="hc" style="margin-top:4px"></h2>
-    <p class="hint">Les 1022 films projetés depuis <b>384 dimensions</b> vers un plan
+    <p class="hint">Les 6000 films projetés depuis <b>384 dimensions</b> vers un plan
     (PaCMAP), puis regroupés par densité. Les territoires se nomment eux-mêmes : on garde
     les motifs <b>sur-représentés</b> dans chaque zone, pas les plus fréquents — « drame »
     ne dit rien, « huis clos » nomme.</p>
@@ -226,9 +226,18 @@ function barres(items, cle, val){
           <div>Époque moyenne <span class="n">${p.annee_moyenne??"—"}</span></div>
         </div>
         <div class="lbl" style="margin-top:14px">L'oracle te connaît</div>
-        ${p.palmares && p.palmares.score!==null && p.palmares.score!==undefined
-          ? `<div class="jauge">${Math.round(p.palmares.score*10)}<span style="font-size:18px">/10</span></div>
-             <p class="vide">Sur ${p.palmares.juges} pari${p.palmares.juges>1?"s":""} que tu as jugé${p.palmares.juges>1?"s":""}.</p>`
+        ${/* PAS DE SCORE. Le produit affichait « 10/10 » sur UN pari jugé — sous
+              l'hypothèse nulle d'une pièce, p = 0,50 : ça ne veut rigoureusement rien
+              dire. Et l'élément s'appelait « jauge », que le §8 du manifeste enterre.
+              On compte, on ne note pas. Un taux ne reviendra qu'au-delà de 20 paris,
+              et avec son intervalle. */""}
+        ${p.palmares && p.palmares.juges
+          ? `<p class="vide">L'oracle a scellé <b>${p.palmares.paris}</b> pari${p.palmares.paris>1?"s":""},
+             tu en as jugé <b>${p.palmares.juges}</b>.
+             ${p.palmares.juges < 20
+               ? `Trop peu pour en tirer un taux — sur ${p.palmares.juges},
+                  même une pièce ferait aussi bien assez souvent pour qu'un chiffre mente.`
+               : ""}</p>`
           : `<p class="vide">Aucun pari jugé pour l'instant. C'est <b>lui</b> qui est noté,
              jamais toi — tu ne peux pas échouer ici.</p>`}
       </div>

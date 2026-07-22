@@ -458,6 +458,72 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_le_journal_ne_perd_rien():
+    """Le produit détruisait de la donnée tous les soirs, et c'était irrécupérable.
+
+    Trois pertes constatées dans le code : un second choix écrasait `en_attente` (film,
+    registre, pari et les DEUX cartes témoins, effacés sans trace) ; `/api/renoncer`
+    n'écrivait rien, donc le taux de « révélé mais jamais regardé » était non mesurable
+    par construction ; `/api/ressenti` n'exigeait ni serrure ni correspondance de film,
+    donc un double envoi doublait le poids d'un film dans le profil.
+
+    Rien de ce qui est écrit ici n'entre dans le profil : renoncer n'est pas rejeter (§3).
+    """
+    from recommender import journal
+    from fastapi.testclient import TestClient
+    import main
+    seeds = ids_from_titles(GRAINES)
+    sauve = aretes.lire_etat()
+    n0 = len(journal.tous())
+    try:
+        c = TestClient(main.app)
+        aretes.ecrire_etat({"graines": seeds})
+
+        r = c.post("/api/choix", json={"film_id": seeds[0], "titre": "A",
+                                       "registre": "connu", "pari": "p",
+                                       "ecartes": [seeds[1], seeds[2]]})
+        check("un choix est accepté", r.status_code == 200, str(r.status_code))
+
+        # un second choix sur un AUTRE film doit être refusé — mais tracé
+        r2 = c.post("/api/choix", json={"film_id": seeds[1], "titre": "B",
+                                        "registre": "pari", "ecartes": [seeds[0]]})
+        check("un second choix n'écrase plus le premier", r2.status_code == 409,
+              str(r2.status_code))
+        check("la serrure d'origine est intacte",
+              aretes.en_attente()["film_id"] == seeds[0])
+        refus = [e for e in journal.tous() if e["type"] == "choix_refuse"]
+        check("même refusé, le choix laisse une trace", len(refus) >= 1)
+        check("… avec ses cartes écartées", refus[-1].get("ecartes") == [seeds[0]],
+              str(refus[-1].get("ecartes")))
+
+        # un ressenti sur le mauvais film est refusé
+        r3 = c.post("/api/ressenti", json={"film_id": seeds[1], "texte": "un texte"})
+        check("un ressenti sur le mauvais film est refusé", r3.status_code == 409,
+              str(r3.status_code))
+
+        # renoncer LAISSE UNE LIGNE — c'était le trou principal
+        r4 = c.post("/api/renoncer")
+        check("renoncer est accepté", r4.status_code == 200)
+        ren = [e for e in journal.tous() if e["type"] == "renonce"]
+        check("renoncer écrit enfin un événement", len(ren) >= 1)
+        check("… en gardant le film et ses écartées",
+              ren[-1]["film_id"] == seeds[0] and ren[-1].get("ecartes") == [seeds[1], seeds[2]],
+              str(ren[-1]))
+
+        # et sans serrure, un ressenti ne peut plus créer d'arête fantôme
+        r5 = c.post("/api/ressenti", json={"film_id": seeds[0], "texte": "un texte"})
+        check("sans serrure armée, pas d'arête", r5.status_code == 409, str(r5.status_code))
+
+        cpt = journal.compteurs()
+        check(f"les compteurs comptent ({cpt['choix']} choix, {cpt['renoncements']} renoncé)",
+              cpt["choix"] >= 1 and cpt["renoncements"] >= 1, str(cpt))
+        check("sous 5 choix, aucun taux n'est publié", cpt["taux_non_vu"] is None,
+              str(cpt["taux_non_vu"]))
+        check("le journal ne perd jamais de ligne", len(journal.tous()) > n0)
+    finally:
+        aretes.ecrire_etat(sauve)
+
+
 def test_le_glyphe_est_un_sceau_pas_une_carte():
     """La DISPOSITION des cellules ne veut rien dire, et ce test l'établit pour de bon.
 
@@ -693,6 +759,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_empreinte, test_carte_du_gout,
+              test_le_journal_ne_perd_rien,
               test_le_glyphe_est_un_sceau_pas_une_carte,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
               test_les_rejets_ne_sortent_pas_du_cone,
