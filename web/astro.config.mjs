@@ -1,5 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import preact from '@astrojs/preact';
+import react from '@astrojs/react';
 
 /* MORDU — configuration Astro.
  *
@@ -16,8 +18,27 @@ import { defineConfig } from 'astro/config';
  *
  * On n'utilise PAS `<ClientRouter />` : il ferait basculer le site en navigation SPA et
  * écraserait la View Transition native du navigateur. C'est délibéré.
+ *
+ * -- AJOUT DU 22/07, POUR MESURE UNIQUEMENT ------------------------------------------
+ * Les deux intégrations ci-dessous servent la comparaison Preact / React sur l'écran
+ * `domaines` (pages `domaines-preact` et `domaines-react`, prototypes à côté de
+ * l'original). Une intégration déclarée ici ne coûte RIEN aux pages qui n'ont pas d'îlot :
+ * c'est vérifiable en comparant les bundles de `oracle`/`profil`/`versus` avant et après.
+ * À retirer avec les prototypes si la réponse est « non ».
  */
 export default defineConfig({
   server: { port: 4321 },
   devToolbar: { enabled: false },
+  /* LE PRÉCHARGEMENT — c'est LA chose qu'Astro apporte et qui se voit vraiment.
+   * Au survol d'un lien, il va chercher le HTML de la page suivante ; au clic, elle est
+   * déjà là. Combiné à la View Transition inter-documents native, la navigation devient
+   * un fondu instantané au lieu d'un aller-retour réseau.
+   * Mesuré avant : 341 ms pour que le HTML du profil soit prêt. Ce délai disparaît.
+   * `hover` et pas `load` : précharger les 4 pages au chargement gaspillerait de la
+   * bande passante pour des écrans que l'on ne visitera peut-être pas. */
+  prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
+  integrations: [
+    preact({ include: ['**/preact/**'] }),
+    react({ include: ['**/react/**'] }),
+  ],
 });

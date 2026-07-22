@@ -25,7 +25,10 @@ function barres(items, cle, val){
 (async()=>{
   let p, ars;
   try{
-    p=await GET("/api/profil"); ars=await GET("/api/aretes");
+    // EN PARALLÈLE. Ces deux appels ne dépendent pas l'un de l'autre ; en série ils
+    // additionnaient leurs latences pour rien. Mesuré sur le profil : 491 ms d'écran vide
+    // entre le HTML prêt et le dernier appel terminé.
+    [p, ars] = await Promise.all([GET("/api/profil"), GET("/api/aretes")]);
     st.className="status ok"; st.textContent=`${p.films} films connus · ${p.aretes} arête${p.aretes>1?"s":""}`;
   }catch(e){
     st.className="status ko"; st.textContent="API hors ligne";

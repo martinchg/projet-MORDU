@@ -28,7 +28,9 @@ async function router(){
   nettoyer();
   let etat;
   try{
-    const h=await GET("/api/health"); etat=await GET("/api/etat");
+    // en parallèle : santé et état ne dépendent pas l'un de l'autre
+    const [h, e] = await Promise.all([GET("/api/health"), GET("/api/etat")]);
+    etat = e;
     setStatus(true,`oracle en ligne · ${h.films} films · ${etat.aretes} arête${etat.aretes>1?"s":""}`);
   }catch(e){
     setStatus(false,"API hors ligne");
