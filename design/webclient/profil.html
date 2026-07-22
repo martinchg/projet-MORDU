@@ -268,6 +268,12 @@ function barres(items, cle, val){
         const go=()=>MORDU.tramer(cv,im,{net:1,temperature:MORDU.temperature(m),w:64,h:96});
         if(im&&!im.complete) im.addEventListener("load",go,{once:true}); go();
         const ta=f.querySelector("textarea"), cp=f.querySelector(".cpt");
+        if(MORDU.dicteeDispo){
+          const b=document.createElement("button");
+          b.className="btn micro"; b.textContent="dicter";
+          ta.parentNode.insertBefore(b, ta.nextSibling);
+          MORDU.dicter(ta, b);
+        }
         ta.addEventListener("input",()=>{
           etat[i]=ta.value; const n=ta.value.trim().length;
           cp.textContent = n>=MIN ? "✓" : (n?`${n}/${MIN} caractères minimum`:"");

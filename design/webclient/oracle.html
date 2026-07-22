@@ -187,6 +187,12 @@ function vueOnboarding(){
       <div class="cpt"></div></div>`).join("");
     liste.querySelectorAll(".choisi").forEach((el,i)=>{
       const ta=el.querySelector("textarea"), cp=el.querySelector(".cpt");
+      if(MORDU.dicteeDispo){                       // même geste que dans la serrure
+        const b=document.createElement("button");
+        b.className="btn micro"; b.textContent="dicter";
+        ta.parentNode.insertBefore(b, ta.nextSibling);
+        MORDU.dicter(ta, b);
+      }
       const maj=()=>{ choisis[i].texte=ta.value;
         const n=ta.value.trim().length;
         el.classList.toggle("court", n>0 && n<MIN);
@@ -315,6 +321,8 @@ function vueSerrure(a){
           <span class="compte" id="verdict"></span>
         </div></div>`:``}
       <textarea id="txt" placeholder="ce qui m'est resté…" autofocus></textarea>
+      <button class="btn micro" id="micro" hidden>dicter</button>
+      <div class="micro-note" id="micronote" hidden></div>
       <div class="relu" id="relu"></div>
       <div class="row">
         <button class="btn" id="env">Débloquer le prochain →</button>
@@ -328,6 +336,22 @@ function vueSerrure(a){
     </div>`;
   titre(document.getElementById("h"),"Raconte");
   const txt=document.getElementById("txt"), err=document.getElementById("err");
+
+  // LA DICTÉE. À 23 h, après un film, dire trente secondes est presque gratuit ; taper un
+  // paragraphe est une corvée qu'on remet à demain — et « demain » est exactement là où
+  // la boucle du produit casse. La parole a un second avantage, plus important : elle ne
+  // se relit pas. Le manifeste demande d'écrire POUR SOI (§2), or l'écrit invite à polir,
+  // à composer une petite critique. Ce qui sort à voix haute est plus près de « ce qu'il
+  // t'en reste ».
+  const micro=document.getElementById("micro"), mnote=document.getElementById("micronote");
+  if(MORDU.dicteeDispo){
+    micro.hidden=false; mnote.hidden=false;
+    // On le DIT au lieu de l'enterrer : sous Chrome la transcription passe par les
+    // serveurs de Google. Pour un journal de cinéma, ça se sait avant de parler.
+    mnote.textContent="parle, ça s'écrit tout seul — la transcription passe par le "
+      +"navigateur (Chrome l'envoie à Google), le texte reste chez toi ensuite";
+    MORDU.dicter(txt, micro);
+  }
   // Le pari appartient à l'ORACLE : c'est LUI qu'on note, jamais toi. Tu ne peux
   // pas échouer ici — c'est ce qui distingue ça d'un streak (MANIFESTE §9).
   let juge=null;

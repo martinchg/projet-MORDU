@@ -410,8 +410,87 @@
     });
   }
 
+  // --- LA DICTÉE ----------------------------------------------------------------------
+  // La serrure exige d'ÉCRIRE après chaque film, et c'est la friction centrale du produit
+  // — les trois audits l'ont pointée. Mais le vrai argument n'est pas le confort : c'est
+  // que le manifeste demande d'écrire POUR SOI, pas pour les autres (§2). Or l'écrit
+  // invite à se relire, à polir, à composer une petite critique. La parole, non : elle
+  // sort telle quelle. À 23 h après un film, dire trente secondes est presque gratuit ;
+  // taper un paragraphe est une corvée qu'on remet à plus tard, et « plus tard » est
+  // exactement l'endroit où la boucle du produit casse.
+  //
+  // Web Speech API : rien à installer, rien côté serveur, et ça tient dans la contrainte
+  // du projet (zéro framework, zéro build).
+  //
+  // DEUX HONNÊTETÉS, parce que ça mérite d'être su :
+  //  1. Sous Chrome, l'audio part chez Google pour être transcrit. Ce n'est PAS du calcul
+  //     local. Pour un journal intime de cinéma, ça se dit — d'où l'avertissement affiché
+  //     à la première utilisation plutôt qu'enterré ici.
+  //  2. Firefox ne l'implémente pas. Le bouton ne s'affiche donc que s'il existe : pas de
+  //     bouton mort.
+  const DICTEE = global.SpeechRecognition || global.webkitSpeechRecognition || null;
+
+  function dicter(zone, bouton, opts) {
+    if (!DICTEE || !zone || !bouton) {
+      if (bouton) bouton.hidden = true;
+      return null;
+    }
+    const o = Object.assign({ langue: "fr-FR" }, opts);
+    let reco = null, actif = false, base = "";
+
+    function poser(txt) {
+      zone.value = txt;
+      // `field-sizing: content` fait grandir la zone toute seule, mais l'événement doit
+      // être émis à la main : le compteur de caractères et l'activation du bouton
+      // « débloquer » écoutent `input`, pas les changements programmatiques.
+      zone.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function stop() {
+      actif = false;
+      bouton.classList.remove("ecoute");
+      bouton.textContent = bouton.dataset.repos || "dicter";
+      if (reco) { try { reco.stop(); } catch (e) {} }
+    }
+
+    bouton.dataset.repos = bouton.textContent;
+    bouton.addEventListener("click", () => {
+      if (actif) return stop();
+      reco = new DICTEE();
+      reco.lang = o.langue;
+      reco.continuous = true;
+      reco.interimResults = true;
+      base = zone.value ? zone.value.trimEnd() + " " : "";
+      actif = true;
+      bouton.classList.add("ecoute");
+      bouton.textContent = "● j'écoute — cliquer pour arrêter";
+
+      reco.onresult = (ev) => {
+        let fini = "", encours = "";
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const t = ev.results[i][0].transcript;
+          if (ev.results[i].isFinal) fini += t; else encours += t;
+        }
+        if (fini) base = (base + fini).replace(/\s+/g, " ").trimStart() + " ";
+        poser((base + encours).trimStart());
+      };
+      // Chrome coupe tout seul après un silence : on relance tant que l'utilisateur n'a
+      // pas cliqué pour arrêter, sinon une pause de réflexion termine la dictée.
+      reco.onend = () => { if (actif) { try { reco.start(); } catch (e) { stop(); } } };
+      reco.onerror = (e) => {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          bouton.textContent = "micro refusé";
+          actif = false; bouton.classList.remove("ecoute");
+        }
+      };
+      try { reco.start(); } catch (e) { stop(); }
+    });
+    return { stop, get actif() { return actif; } };
+  }
+
   global.MORDU = {
     PALETTE, tramer, animer, reveler, fond, resoudreTexte, temperature,
+    dicter, get dicteeDispo() { return !!DICTEE; },
     get webgl() { return init(); },
   };
 })(window);
