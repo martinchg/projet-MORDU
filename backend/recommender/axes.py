@@ -19,73 +19,97 @@ import re
 import unicodedata
 
 # Axes volontairement peu nombreux et NOMMÉS en français : un portrait doit se lire.
+#
+# PURGE DES HOMOGRAPHES (22/07) — un audit a montré que ce lexique décrivait n'importe
+# quoi. Sur les vraies données, l'axe dominant affiché était « l'image », allumé deux fois
+# sur trois par le mot « belles »… venu de « de très belles femmes qui donnent envie de
+# rester ». L'axe décrivait des actrices. Autres pièges mesurés :
+#
+#     « le héros perd SON sang froid »        -> le son     (possessif)
+#     « TON film est sorti trop tard »        -> l'ambiance (possessif)
+#     « une HISTOIRE d'amour sans intérêt »   -> l'intrigue (trop générique)
+#     « à la FIN j'étais fatigué »            -> l'intrigue
+#     « le PLAN du braquage »                 -> l'image
+#
+# Deux règles depuis : aucun mot vide de sens hors contexte, et aucun mot de VALENCE
+# (« beau », « belle », « sublime ») — sinon l'axe le plus stable n'est qu'un compliment.
+# Ce qui a besoin de son contexte passe en EXPRESSION, cherchée dans le texte suivi.
 AXES = {
     "atmosphère": {
         "libelle": "l'atmosphère",
         "phrase": "l'ambiance et le climat d'un film",
         "mots": ("ambiance", "atmosphere", "climat", "poisseux", "poisseuse", "oppressant",
-                 "oppressante", "immersion", "univers", "ton", "lourde", "lourd", "malaise",
-                 "angoisse", "tension", "tendu", "glacial", "etouffant", "sombre"),
+                 "oppressante", "immersion", "univers", "malaise",
+                 "angoisse", "tension", "tendu", "glacial", "etouffant"),
+        "expr": ("le ton", "un ton", "du film est lourde", "atmosphere lourde"),
     },
     "image": {
         "libelle": "l'image",
         "phrase": "la photo, les couleurs, les décors",
-        "mots": ("couleur", "couleurs", "image", "images", "plan", "plans", "photo",
-                 "photographie", "lumiere", "decor", "decors", "esthetique", "visuel",
-                 "cadre", "cadrage", "beau", "belle", "belles", "sublime", "magnifique"),
+        "mots": ("couleur", "couleurs", "photographie", "lumiere", "decor", "decors",
+                 "esthetique", "cadrage", "colorimetrie", "teinte", "teintes"),
+        "expr": ("la photo", "l'image", "les images", "un plan", "les plans",
+                 "plan sequence", "le cadre", "visuellement"),
     },
     "rythme": {
         "libelle": "le rythme",
         "phrase": "le tempo, la longueur, le montage",
         "mots": ("rythme", "lent", "lente", "lenteur", "rapide", "nerveux", "longueur",
-                 "traine", "tempo", "montage", "long", "longue", "court", "courte",
-                 "dynamique", "sec", "seche"),
+                 "traine", "tempo", "montage", "dynamique"),
+        "expr": ("trop long", "un peu long", "trop longue", "ca traine", "trop court"),
     },
     "intrigue": {
         "libelle": "l'intrigue",
         "phrase": "le scénario, les retournements, la fin",
-        "mots": ("intrigue", "scenario", "twist", "retournement", "revelation", "fin",
-                 "denouement", "enquete", "mystere", "suspense", "histoire", "recit",
-                 "surprise", "indice"),
+        "mots": ("intrigue", "scenario", "twist", "retournement", "revelation",
+                 "denouement", "enquete", "mystere", "suspense", "recit", "indice"),
+        "expr": ("la fin", "le final", "une surprise"),
     },
     "personnages": {
         "libelle": "les personnages",
         "phrase": "le jeu, l'interprétation, les rôles",
-        "mots": ("personnage", "personnages", "acteur", "acteurs", "actrice", "jeu",
+        "mots": ("personnage", "personnages", "acteur", "acteurs", "actrice", "actrices",
                  "interpretation", "casting", "role", "roles", "incarne", "protagoniste",
-                 "heros", "duo", "performance"),
+                 "heros", "performance"),
+        "expr": ("le jeu", "son jeu", "leur jeu", "le duo"),
     },
     "morale": {
         "libelle": "l'ambiguïté morale",
         "phrase": "les dilemmes, la justice, la culpabilité",
         "mots": ("morale", "moral", "ambiguite", "ambigu", "ambigue", "dilemme", "justice",
-                 "culpabilite", "coupable", "jugement", "ethique", "verite", "mensonge",
+                 "culpabilite", "coupable", "jugement", "ethique", "mensonge",
                  "trahison", "vengeance"),
+        "expr": ("la verite",),
     },
     "émotion": {
         "libelle": "l'émotion",
         "phrase": "ce que le film te fait ressentir",
-        "mots": ("emu", "emue", "bouleverse", "bouleversee", "touche", "touchee", "pleure",
-                 "emotion", "poignant", "poignante", "sensible", "coeur", "larmes",
-                 "melancolie", "nostalgie", "amour", "tendresse"),
+        "mots": ("emu", "emue", "bouleverse", "bouleversee", "pleure",
+                 "emotion", "poignant", "poignante", "larmes",
+                 "melancolie", "nostalgie", "tendresse", "bouleversant"),
+        "expr": ("m'a touche", "ca m'a touche", "au coeur", "en plein coeur"),
     },
     "son": {
         "libelle": "le son",
         "phrase": "la musique, la bande-son, le silence",
-        "mots": ("musique", "bande", "son", "sonore", "silence", "theme", "melodie",
-                 "bruit", "bruitage", "chanson", "partition"),
+        "mots": ("musique", "sonore", "silence", "melodie", "bruitage", "chanson",
+                 "partition", "themes"),
+        "expr": ("bande son", "bande originale", "le son", "du son", "la bande",
+                 "le theme"),
     },
     "structure": {
         "libelle": "la construction",
         "phrase": "la narration, la temporalité, la forme",
         "mots": ("temporalite", "structure", "narration", "flashback", "chronologie",
-                 "construction", "forme", "boucle", "ellipse", "parallele", "huis"),
+                 "construction", "boucle", "ellipse", "temporalites"),
+        "expr": ("huis clos", "en parallele", "la forme"),
     },
     "mise en scène": {
         "libelle": "la mise en scène",
         "phrase": "le travail du réalisateur",
-        "mots": ("realisation", "realise", "realisee", "realisateur", "mise", "scene",
-                 "camera", "maitrise", "maitrisee", "virtuose", "geste", "style"),
+        "mots": ("realisation", "realise", "realisee", "realisateur", "realisatrice",
+                 "camera", "maitrise", "maitrisee", "virtuose"),
+        "expr": ("mise en scene", "le geste", "son style", "un style"),
     },
 }
 
@@ -96,6 +120,32 @@ def _norm(t):
     t = unicodedata.normalize("NFD", (t or "").lower())
     t = "".join(c for c in t if unicodedata.category(c) != "Mn")
     return re.findall(r"[a-z']+", t)
+
+
+def _suivi(jetons):
+    """Le texte remis à plat, apostrophes comprises, pour y chercher des EXPRESSIONS.
+    « l'image » est un seul jeton après _norm ; on garde donc la forme suivie telle
+    quelle et on cherche dedans avec des bornes de mots."""
+    return " " + " ".join(jetons) + " "
+
+
+def _touches(texte):
+    """Les axes touchés par un texte, avec les formes qui les ont déclenchés.
+
+    Un axe ne compte QU'UNE FOIS par ressenti, quel que soit le nombre de mots trouvés :
+    sinon un texte long l'emporte sur un texte juste, et la mesure devient un compteur
+    de longueur.
+    """
+    jetons = _norm(texte)
+    suite = _suivi(jetons)
+    vus = set(jetons)
+    touche = {}
+    for cle, ax in AXES.items():
+        formes = [m for m in ax["mots"] if m in vus]
+        formes += [e for e in ax.get("expr", ()) if f" {e} " in suite]
+        if formes:
+            touche[cle] = formes
+    return touche
 
 
 def _de(libelle):
@@ -126,15 +176,13 @@ def portrait(aretes):
     exemples = {k: [] for k in AXES}
 
     for a in ars:
-        jetons = _norm(a.get("texte"))
-        vus = set()
-        for cle, ax in AXES.items():
-            for j in jetons:
-                if j in ax["mots"] and j not in vus:
-                    scores[cle] += 1
-                    vus.add(j)
-                    if len(exemples[cle]) < 4:
-                        exemples[cle].append(j)
+        # un axe = un point par RESSENTI, pas par occurrence : sinon le texte le plus
+        # bavard gagne, et on mesure la longueur au lieu de l'attention
+        for cle, formes in _touches(a.get("texte")).items():
+            scores[cle] += 1
+            for f in formes:
+                if len(exemples[cle]) < 4 and f not in exemples[cle]:
+                    exemples[cle].append(f)
 
     total = sum(scores.values())
     classe = sorted(AXES, key=lambda k: -scores[k])

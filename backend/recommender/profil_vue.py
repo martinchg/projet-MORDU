@@ -12,6 +12,7 @@ d'inventer un portrait. Pas de faux profilage.
 """
 import os
 import re
+import unicodedata
 from collections import Counter
 
 import numpy as np
@@ -45,7 +46,16 @@ def _sans_article(s):
 
 
 def _mots(texte):
-    t = re.sub(r"[^\wàâäéèêëîïôöùûüç' ]", " ", (texte or "").lower())
+    """Les mots de contenu d'un ressenti, accents PLIÉS.
+
+    _VIDES est écrit sans accents ; sans le pli, « très », « même », « déjà » et « après »
+    ne matchaient aucune entrée et remontaient en tête du nuage « les mots qui te
+    reviennent ». Mesuré sur les vraies données : les trois mots communs aux deux seuls
+    ressentis étaient « belles », « même », « très ». Un nuage de mots vides.
+    """
+    t = unicodedata.normalize("NFD", (texte or "").lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    t = re.sub(r"[^\w' ]", " ", t)
     return [m for m in t.split() if len(m) >= 4 and m not in _VIDES]
 
 
@@ -96,61 +106,61 @@ def _ordre_dimensions():
 _ORDRE = None
 
 
-def empreinte(graines, aretes, largeur=24):
+NIVEAUX = 11          # les 11 couleurs de la palette, une fois pour toutes
+LARGEUR = 24          # 24 x 16 = 384 cellules = 384 dimensions, une cellule par dimension
+
+
+def grille(p, lo=None, hi=None, largeur=LARGEUR):
+    """Un vecteur 384D -> la grille quantifiée, plus les bornes utilisées.
+
+    Séparé d'empreinte() pour que DEUX vecteurs (le profil de toujours et le profil
+    récent) puissent être quantifiés sur les MÊMES bornes. Sans bornes partagées, chacun
+    se renormalise sur lui-même et les comparer n'a aucun sens.
+    """
+    global _ORDRE
+    if _ORDRE is None:
+        _ORDRE = _ordre_dimensions()
+    v = np.asarray(p, dtype=float)[_ORDRE]      # dimensions corrélées côte à côte
+    hauteur = int(np.ceil(len(v) / largeur))
+    pad = np.zeros(hauteur * largeur)
+    pad[: len(v)] = v
+    g = pad.reshape(hauteur, largeur)
+    # normalisation robuste : les extrêmes d'un embedding écraseraient tout le reste
+    if lo is None or hi is None:
+        lo, hi = float(np.percentile(g, 3)), float(np.percentile(g, 97))
+    g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
+    q = np.floor(g * (NIVEAUX - 1) + 0.5).astype(int)
+    return q, hauteur, lo, hi
+
+
+def empreinte(graines, aretes, largeur=LARGEUR):
     """TON EMPREINTE — le vecteur profil (384D) rendu en glyphe.
 
     Ton goût EST déjà un objet mathématique unique : plutôt que de le résumer en barres,
     on le montre tel quel, replié en grille et quantifié sur la palette dither.
     Déterministe : même goût, même glyphe.
 
-    Et il obéit au principe du produit : il est GROSSIER au début et se RÉSOUT à mesure
-    que tu racontes. La résolution est portée par la TAILLE DES BLOCS, pas par le nombre
-    de couleurs — première version testée, faire varier les seuls paliers de palette ne
-    se voyait pas : le glyphe restait du bruit, en plus ou moins coloré. En agrégeant le
-    vecteur par blocs (8x5 au départ, 24x16 à terme), on voit vraiment une image passer
-    du flou au net, exactement comme les affiches.
+    LA RAMPE DE FINESSE A ÉTÉ SUPPRIMÉE (22/07, après mesure). Le glyphe agrégeait par
+    blocs de 3 -> 2 -> 1 et passait de 4 à 11 paliers selon le NOMBRE d'arêtes. En
+    figeant le profil et en ne faisant varier que le compteur, jusqu'à 82,6 % de la
+    grille changeait de couleur À GOÛT STRICTEMENT IDENTIQUE — sept transitions sur
+    douze au-dessus de 45 %. Un vrai pas de goût, lui, en déplace la moitié.
+
+    L'artefact était donc plus gros que le signal : ce qu'on prenait pour « l'empreinte
+    qui évolue » était un compteur d'arêtes dessiné en pixels, c'est-à-dire une jauge de
+    complétion — précisément ce que le §8 du manifeste enterre. Retirer le pourcentage
+    n'aurait pas retiré la jauge ; il fallait retirer la rampe.
+
+    L'évolution est désormais portée par une mesure qui en est vraiment une : la BRAISE
+    (voir derive.py), l'écart entre ce que tu racontes en ce moment et tout ce que tu as
+    raconté. Elle, elle naît vide et grandit avec la vie.
     """
     p = profil(graines, aretes)
     if p is None:
         return None
-    global _ORDRE
-    if _ORDRE is None:
-        _ORDRE = _ordre_dimensions()
-    v = np.asarray(p, dtype=float)[_ORDRE]     # dimensions corrélées côte à côte
-    hauteur = int(np.ceil(len(v) / largeur))
-    pad = np.zeros(hauteur * largeur)
-    pad[: len(v)] = v
-    g = pad.reshape(hauteur, largeur)
-
-    # normalisation robuste : les extrêmes d'un embedding écraseraient tout le reste
-    lo, hi = np.percentile(g, 3), np.percentile(g, 97)
-    g = np.clip((g - lo) / max(hi - lo, 1e-9), 0, 1)
-
-    n = len(aretes or [])
-    finesse = min(1.0, n / 12.0)
-
-    # RÉSOLUTION : on agrège par blocs. bloc 3 -> très grossier, bloc 1 -> plein détail.
-    bloc = int(round(3 - 2 * finesse))          # 3, 2, puis 1
-    bloc = max(1, bloc)
-    if bloc > 1:
-        hh, ww = hauteur // bloc, largeur // bloc
-        reduit = g[: hh * bloc, : ww * bloc].reshape(hh, bloc, ww, bloc).mean(axis=(1, 3))
-        # RENORMALISER après l'agrégation, sinon le glyphe est plat aux premiers stades.
-        # Moyenner un vecteur bruité tire toutes les cellules vers le centre ; quantifiées
-        # ensuite sur 4-5 paliers, elles tombent presque toutes sur le même -> un aplat.
-        # Une basse résolution doit être GROSSIÈRE ET CONTRASTÉE, comme une image très
-        # pixelisée, pas un lavis uniforme.
-        rlo, rhi = np.percentile(reduit, 5), np.percentile(reduit, 95)
-        reduit = np.clip((reduit - rlo) / max(rhi - rlo, 1e-9), 0, 1)
-        # on ré-étale pour garder la même taille d'image, d'où les gros pixels
-        g = np.repeat(np.repeat(reduit, bloc, axis=0), bloc, axis=1)
-        g = np.pad(g, ((0, hauteur - g.shape[0]), (0, largeur - g.shape[1])), mode="edge")
-
-    niveaux = int(4 + round(finesse * 7))       # de 4 à 11 paliers
-    q = np.floor(g * (niveaux - 1) + 0.5).astype(int)
-
-    return {"largeur": largeur, "hauteur": hauteur, "niveaux": niveaux,
-            "bloc": bloc, "finesse": round(finesse, 3), "aretes": n,
+    q, hauteur, lo, hi = grille(p, largeur=largeur)
+    return {"largeur": largeur, "hauteur": hauteur, "niveaux": NIVEAUX,
+            "aretes": len(aretes or []), "lo": lo, "hi": hi,
             "cellules": [int(x) for x in q.flatten()]}
 
 

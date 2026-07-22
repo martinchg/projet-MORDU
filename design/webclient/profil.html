@@ -328,18 +328,18 @@ function barres(items, cle, val){
     });
     ctx.putImageData(im,0,0);
     document.getElementById("emptxt").innerHTML=
-      `Ce glyphe est <b>ton vecteur de goût</b> — 384 dimensions repliées et quantifiées
-       sur la palette. Il est <b>déterministe</b> : même goût, même image. C'est une
-       <b>signature</b>, pas un portrait : il t'identifie sans rien raconter. Ce qui se
-       lit est au-dessus.
-       <br><br>Il est encore <b>grossier</b> — blocs de ${E.bloc}, ${E.niveaux} paliers.
-       Il se résout à mesure que tu écris, exactement comme les affiches : vers douze
-       ressentis les blocs tombent à 1 et tu vois le vecteur en plein détail.
-       <div class="fin"><i style="width:${Math.round(E.finesse*100)}%"></i></div>
+      `Ce glyphe est <b>ton vecteur de goût</b> — 384 dimensions repliées, une cellule par
+       dimension, quantifiées sur les ${E.niveaux} couleurs de la palette. Il est
+       <b>déterministe</b> : même goût, même image. C'est une <b>signature</b>, pas un
+       portrait : il t'identifie sans rien raconter. Ce qui se lit est au-dessus.
+       <br><br>Il ne « se résout » plus avec le nombre de ressentis. Cette rampe existait,
+       et elle était <b>fausse</b> : à goût strictement identique, jusqu'à 82 % de la
+       grille changeait de couleur juste parce que le compteur montait. C'était une jauge
+       de complétion déguisée en glyphe. Ce qui bouge ici, désormais, c'est ton goût —
+       rien d'autre.
        <a href="empreinte-evolution.html" style="color:var(--red);font-size:12px">
-       voir l'évolution complète →</a><br>
-       <span style="font-family:var(--mono);font-size:9.5px">finesse ${Math.round(E.finesse*100)} %
-       · ${E.aretes} arête${E.aretes>1?"s":""}</span>`;
+       voir ce qui bouge dans le temps →</a><br>
+       <span style="font-family:var(--mono);font-size:9.5px">${E.aretes} arête${E.aretes>1?"s":""}</span>`;
   }
 
   // ---- LA CARTE ----

@@ -119,23 +119,52 @@ Un seul geste esthétique — la révélation — décliné en trois moments de 
    les deux un INSTANTANÉ.** N'importe qui peut se voir écrire « tu regardes l'image ».
    Personne ne peut se voir écrire SA trajectoire.
 
-   La dérive est donc l'objet central des trois, et elle ne coûte aucun stockage : les
-   arêtes sont horodatées et append-only (§4), donc l'histoire est déjà là. On rejoue le
-   profil sur chaque préfixe et on mesure ce qui a changé, sur quatre axes tirés
-   uniquement de l'existant :
+   La dérive ne coûte aucun stockage : les arêtes sont horodatées et append-only (§4),
+   donc l'histoire est déjà là.
 
-   | mesure | d'où elle sort | ce qu'elle dit |
+   **PREMIÈRE VERSION JETÉE LE JOUR MÊME, et c'est la leçon la plus chère du projet.**
+   Elle mesurait quatre choses (cap en degrés, ouverture, audace, attention) et rendait
+   un verdict en français. Passée sur 40 historiques **tirés au hasard** — films au
+   hasard, textes au hasard, registres au hasard :
+
+   ```
+   verdict non nul                       40/40   à n = 4, 8, 12 et 20
+   « tu t'es élargi »                    60/60
+   « tu parlais de X, tu parles de Y »   52/60
+   « tu oses davantage »                 35/60
+   ```
+
+   Elle ne se taisait que parce qu'il n'y avait que 2 arêtes ; elle se serait armée à la
+   3ᵉ. Les causes sont structurelles :
+
+   > **Le profil cumulé est une moyenne. Il converge par construction, et il est
+   > INVARIANT À L'ORDRE — il ne peut donc contenir aucune information temporelle.**
+
+   Tout le reste en découle. L'ouverture monte mécaniquement dès qu'on ajoute un film ; un
+   cap en degrés mesure la dilution d'un barycentre (témoin : un film **au hasard** fait
+   tourner le profil de 20,9° en médiane, le premier vrai ressenti l'a fait tourner de
+   19,9° — le 30ᵉ percentile du bruit) ; la sinuosité décroît en k^-0,5 pour l'humanité
+   entière. C'étaient des constantes déguisées en mesures.
+
+   **Ce qui reste, et qui tient :**
+
+   | mesure | l'idée | pourquoi elle est vraie |
    |---|---|---|
-   | **cap** | angle entre le vecteur d'alors et celui d'aujourd'hui | de combien tu as tourné ; le chemin/vol d'oiseau dit si tu as zigzagué ou dérivé droit |
-   | **ouverture** | écart moyen entre ton centre et tes films | tu t'élargis ou tu te resserres — la réponse littérale à « je me suis ouvert ? » |
-   | **audace** | la bande (connu/écart/pari) où l'oracle avait rangé la carte que tu as choisie | est-ce que tu oses davantage |
-   | **attention** | tes mots BRUTS, première moitié contre seconde | ce que tu t'es mis à REGARDER (« tu parlais de l'image, tu parles des personnages ») |
+   | **la braise** | deux profils au lieu d'un — celui de TOUJOURS, et celui de MAINTENANT (demi-vie 30 j). Le rouge est posé là où ils tombent sur des paliers différents | le profil récent, lui, ne converge jamais. Il naît vide, il grandit avec la vie |
+   | **le silence rompu** | un axe dont tu n'avais JAMAIS parlé et dont tu viens de parler | c'est un ÉVÉNEMENT daté, pas une tendance : pas d'hypothèse nulle, donc pas de faux positif. Et ce sont TES mots |
+   | **le témoin du pas** | chaque film comparé à 400 films au hasard depuis le même état | « ce film t'a moins déplacé que 93 % des autres » est vérifiable ; « tu as tourné de 14° » ne veut rien dire |
 
-   **Trois refus, verrouillés par des tests.** Sous 3 arêtes : aucun verdict, on dit ce
-   qui manque. Tout écrit dans la même séance : c'est une *salve*, pas une trajectoire,
-   et c'est écrit noir sur blanc. Dérive lexicale sous 15 points de part : bruit
-   d'échantillonnage, on se tait. Une évolution inventée serait la pire trahison
-   possible du produit — c'est exactement le §7 appliqué à soi-même.
+   **Et la rampe de finesse de l'empreinte est morte avec.** Le glyphe agrégeait par blocs
+   et gagnait des paliers selon le NOMBRE d'arêtes : à goût strictement identique, jusqu'à
+   **82,6 %** de la grille changeait de couleur. L'artefact était plus gros que le signal —
+   c'était une jauge de complétion dessinée en pixels, soit le §8 en douce. Un test
+   verrouille désormais l'inverse : ajouter des arêtes qui ne déplacent pas le vecteur ne
+   doit changer **aucune** cellule.
+
+   **La règle qui sort de tout ça, et qui vaut pour toute mesure future :**
+
+   > Aucune phrase dont l'hypothèse nulle n'a pas été testée sur ces données-là.
+   > Une évolution inventée serait la pire trahison possible du produit.
 
 Pas de jauges, pas de badges, pas de streaks. Le rythme de l'app est indexé sur ta vraie
 vie de spectateur — l'anti-Duolingo, assumé.

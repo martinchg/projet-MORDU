@@ -1,265 +1,261 @@
-"""LA DÉRIVE — mesurer un goût qui bouge, pas un goût figé.
+"""LA DÉRIVE — mesurer un goût qui bouge, sans inventer de mouvement.
 
 Martin : « ce que j'aime dans l'empreinte, c'est que ÇA ÉVOLUE — si tu t'es adouci,
-grandi. » Le portrait en phrase (axes.py) décrit un INSTANTANÉ : c'est pour ça qu'il
-paraît banal. Tout le monde peut écrire « tu regardes l'image ». Personne ne peut écrire
-TA trajectoire, parce qu'elle n'appartient qu'à toi.
+grandi. » Le portrait en phrase décrit un INSTANTANÉ : c'est pour ça qu'il paraît banal.
+Tout le monde peut lire « tu regardes l'image ». Personne d'autre ne peut lire SA
+trajectoire.
 
-Rien de neuf n'est stocké. Les arêtes sont horodatées et append-only (MANIFESTE §4), donc
-l'histoire est DÉJÀ dans les données : on rejoue le profil sur chaque préfixe et on
-regarde ce qui a changé entre deux états.
+CE FICHIER A ÉTÉ RÉÉCRIT APRÈS AUDIT (22/07), et ce qu'il a fallu jeter compte plus que
+ce qui reste. Première version : quatre mesures (cap, ouverture, audace, attention) et un
+verdict en français. Passée sur 40 historiques 100 % ALÉATOIRES — films au hasard, textes
+au hasard, registres au hasard :
 
-Quatre mesures, toutes dérivées de ce qui existe déjà :
+    verdict non nul                          40/40   à n = 4, 8, 12 et 20
+    « tu t'es élargi »                       60/60   sur du bruit pur
+    « tu parlais de X, tu parles de Y »      52/60
+    « tu oses davantage »                    35/60
 
-  CAP        de combien ton vecteur a tourné depuis le départ (degrés sur la sphère)
-  OUVERTURE  l'écart moyen entre ton centre et tes films — tu t'élargis ou tu te resserres
-  AUDACE     dans quelle bande tu piochais (connu / écart / pari), et si ça monte
-  ATTENTION  ce dont tu PARLES, première moitié contre seconde — tes mots, pas les miens
+Elle ne se taisait que parce que Martin n'a que 2 arêtes ; elle se serait armée à la 3e.
+Les causes sont structurelles, pas des réglages :
 
-Le garde-fou compte autant que les mesures : deux points ne font pas une trajectoire, et
-cinq ressentis écrits le même après-midi sont une salve, pas une évolution. Les deux cas
-sont détectés et DITS. Rien n'est pire ici qu'un récit inventé : le produit tout entier
-tient sur le fait que MORDU ne raconte pas de salades.
+  - l'OUVERTURE (écart moyen centre <-> films) monte mécaniquement quand on ajoute un
+    film, quel qu'il soit : +7° entre 5 et 40 films sans qu'aucun goût ne bouge ;
+  - le CAP en degrés mesure la dilution d'un barycentre. Témoin mesuré : ajouter un film
+    AU HASARD fait tourner le profil de 20,9° en médiane (p5-p95 : 18,0-23,6). Le premier
+    vrai ressenti de Martin l'a fait tourner de 19,9° — le 30e percentile du pur bruit ;
+  - l'ATTENTION moitié contre moitié : à 3-4 mots-clés par texte, 15 points de part valent
+    UN mot ;
+  - l'AUDACE est confondue : c'est l'oracle qui compose l'offre, et il ANNONCE le registre
+    sur la carte — on renvoie une étiquette lue vingt secondes plus tôt ;
+  - la SINUOSITÉ (chemin / vol d'oiseau) décroît en k^-0,5 pour tout le monde : la phrase
+    de repli était celle que l'humanité entière aurait reçue.
+
+Le profil cumulé est une moyenne : il converge par construction, et il est INVARIANT À
+L'ORDRE. Il ne peut donc contenir aucune information temporelle. C'est la racine de tout.
+
+Ce qui reste tient sur deux idées qui, elles, sont vraies :
+
+  LA BRAISE   deux profils au lieu d'un — celui de TOUJOURS, et celui de MAINTENANT
+              (décroissance exponentielle, demi-vie 30 jours). Le second ne converge
+              jamais. Leur écart cellule par cellule est le seul mouvement réel.
+  LE SILENCE  un axe dont tu n'avais JAMAIS parlé et dont tu viens de parler. C'est un
+              ÉVÉNEMENT, pas une tendance : zéro statistique, donc zéro faux positif. Et
+              ce sont TES mots — il n'y a rien à réfuter.
+
+Tout le reste est de la donnée brute, montrée sans conclusion tirée dessus.
 """
 import math
-from collections import Counter
+import re
+import unicodedata
+from datetime import datetime
 
 import numpy as np
 
-from .axes import AXES, _de, _norm
+from .axes import AXES, _de, _touches
 from .oracle import profil
-from .profil_vue import empreinte
-from .recommend import _E, _ID2IDX
+from .profil_vue import NIVEAUX, empreinte, grille
+from .recommend import _E, _ID2IDX, _unit
 
-# Une bande = une prise de risque. C'est le seul endroit du produit où le risque est déjà
-# quantifié : l'oracle range chaque carte, et l'arête garde la bande où tu as pioché.
-_RISQUE = {"connu": 0.0, "ecart": 0.5, "pari": 1.0}
-
-MIN_ARETES = 3          # en dessous : aucune trajectoire n'est défendable
-MIN_POUR_SCINDER = 4    # pour comparer deux moitiés, il en faut deux de taille >= 2
+DEMI_VIE_JOURS = 30.0   # ~10-13 films à la cadence réelle d'un spectateur
 SALVE_HEURES = 6        # tout écrit dans la même fenêtre = une séance, pas une évolution
+ECHANTILLON_NUL = 400
+
+
+def _quand(a):
+    try:
+        return datetime.fromisoformat((a or {}).get("date") or "")
+    except (TypeError, ValueError):
+        return None
 
 
 def _angle(u, v):
-    """Angle en degrés entre deux vecteurs unitaires. Plus lisible qu'un cosinus :
-    « tu as tourné de 14° » se comprend, « ta similarité est de 0,97 » non."""
+    """Angle en degrés entre deux vecteurs unitaires."""
     if u is None or v is None:
         return None
-    c = float(np.clip(np.dot(u, v), -1.0, 1.0))
-    return math.degrees(math.acos(c))
+    return math.degrees(math.acos(float(np.clip(np.dot(u, v), -1.0, 1.0))))
 
 
-def _vecteurs_du_set(graines, aretes):
-    """Les vecteurs des films que tu as touchés — graines et arêtes confondues."""
-    ids = list(graines or []) + [a.get("film_id") for a in (aretes or [])]
-    idxs = [_ID2IDX[i] for i in ids if i in _ID2IDX]
-    return _E[idxs] if idxs else None
+def _profil_recent(graines, aretes, maintenant):
+    """Le profil pondéré par l'ANCIENNETÉ : ce que tu racontes en ce moment.
 
-
-def _ouverture(p, graines, aretes):
-    """L'écart moyen entre ton centre et tes films. Grandit = tu t'élargis.
-
-    C'est la mesure qui répond littéralement à « est-ce que je me suis ouvert ». Elle est
-    robuste : ajouter un film proche du centre la fait baisser, un film lointain la fait
-    monter, et elle ne dépend d'aucun seuil arbitraire.
+    Même films, mêmes valences, poids multiplié par 0,5^(âge / demi-vie). Les graines
+    n'ont pas de date : on les date à la première arête, c'est-à-dire à l'origine de
+    l'histoire. Conséquence assumée — avec deux arêtes écrites à 70 minutes d'écart, le
+    profil récent est IDENTIQUE au profil de toujours et l'écart est nul. C'est le
+    comportement voulu : il n'y a rien à montrer, donc on ne montre rien.
     """
-    V = _vecteurs_du_set(graines, aretes)
-    if p is None or V is None or len(V) < 2:
+    ars = [a for a in (aretes or []) if _quand(a)]
+    if not ars or maintenant is None:
         return None
-    return float(np.mean([_angle(p, v) for v in V]))
-
-
-def _horodatage(a):
-    return (a or {}).get("date") or ""
-
-
-def _heures(d1, d2):
-    """Écart en heures entre deux dates ISO. Renvoie None si l'une manque."""
-    from datetime import datetime
-    try:
-        a = datetime.fromisoformat(d1)
-        b = datetime.fromisoformat(d2)
-    except (TypeError, ValueError):
-        return None
-    return abs((b - a).total_seconds()) / 3600.0
-
-
-def _attention(ars):
-    """Ce dont tu parles, en parts par axe. Texte BRUT : ce sont TES mots qui portent le
-    signal, pas ceux d'une relecture LLM (même raison qu'en §4 pour le vocabulaire)."""
-    scores = {k: 0 for k in AXES}
+    origine = min(_quand(a) for a in ars)
+    S = np.zeros(_E.shape[1])
+    for i in graines or []:
+        if i in _ID2IDX:
+            age = (maintenant - origine).total_seconds() / 86400.0
+            S += _E[_ID2IDX[i]] * 0.5 ** (age / DEMI_VIE_JOURS)
     for a in ars:
-        jetons = _norm(a.get("texte"))
-        vus = set()
-        for cle, ax in AXES.items():
-            for j in jetons:
-                if j in ax["mots"] and j not in vus:
-                    scores[cle] += 1
-                    vus.add(j)
-    total = sum(scores.values())
-    if not total:
+        i = a.get("film_id")
+        if i in _ID2IDX:
+            age = (maintenant - _quand(a)).total_seconds() / 86400.0
+            S += (1.5 * float(a.get("valence", 1.0))
+                  * 0.5 ** (age / DEMI_VIE_JOURS)) * _E[_ID2IDX[i]]
+    return _unit(S) if S.any() else None
+
+
+# --- LE TÉMOIN ----------------------------------------------------------------------
+# Un pas en degrés ne veut rien dire seul : ajouter n'importe quel film fait tourner un
+# barycentre. On compare donc chaque pas à ce qu'auraient fait 400 autres films depuis le
+# MÊME état. C'est le percentile qui porte l'information, jamais le degré.
+def _base(graines, aretes):
+    S = np.zeros(_E.shape[1])
+    for i in graines or []:
+        if i in _ID2IDX:
+            S += _E[_ID2IDX[i]]
+    for a in aretes or []:
+        i = a.get("film_id")
+        if i in _ID2IDX:
+            S += (1.5 * float(a.get("valence", 1.0))) * _E[_ID2IDX[i]]
+    return S
+
+
+def _pas_percentile(S, poids, pas, graine):
+    """Où tombe ce pas parmi ceux qu'auraient produits 400 films au hasard."""
+    if not S.any() or pas is None:
         return None
-    return {k: v / total for k, v in scores.items()}
+    p_av = _unit(S)
+    rng = np.random.default_rng(graine)
+    pick = rng.choice(len(_E), size=min(ECHANTILLON_NUL, len(_E)), replace=False)
+    P = S + poids * _E[pick]
+    P /= np.maximum(np.linalg.norm(P, axis=1, keepdims=True), 1e-12)
+    nul = np.degrees(np.arccos(np.clip(P @ p_av, -1.0, 1.0)))
+    return round(float((nul < pas).mean()), 3)
 
 
-def _derive_attention(ars):
-    """Compare la première moitié de tes ressentis à la seconde.
+def _forme_originale(texte, forme):
+    """Le lexique est écrit sans accents ; on cite la personne, donc on lui rend SON mot.
 
-    C'est la mesure la plus lisible des quatre, et la plus difficile à contester : elle ne
-    dit pas ce que tu aimes, elle dit ce que tu t'es mis à REGARDER. « Tu parlais image,
-    tu parles maintenant personnages » n'est vrai que de toi.
+    Sans ça l'écran affichait « tu as écrit "realise" » alors qu'elle avait écrit
+    « réalisé ». Citer quelqu'un en abîmant son orthographe décrédibilise tout le reste.
     """
-    if len(ars) < MIN_POUR_SCINDER:
-        return None
-    coupe = len(ars) // 2
-    av, ap = _attention(ars[:coupe]), _attention(ars[coupe:])
-    if not av or not ap:
-        return None
-    deltas = sorted(((ap[k] - av[k], k) for k in AXES), reverse=True)
-    gagne, perdu = deltas[0], deltas[-1]
-    # un mouvement sous 15 points de part est du bruit d'échantillonnage, pas une dérive
-    return {
-        "gagne": {"cle": gagne[1], "libelle": AXES[gagne[1]]["libelle"],
-                  "delta": round(gagne[0], 3)} if gagne[0] >= 0.15 else None,
-        "perdu": {"cle": perdu[1], "libelle": AXES[perdu[1]]["libelle"],
-                  "delta": round(perdu[0], 3)} if perdu[0] <= -0.15 else None,
-        "avant": {k: round(v, 3) for k, v in av.items() if v > 0},
-        "apres": {k: round(v, 3) for k, v in ap.items() if v > 0},
-    }
+    def plier(s):
+        s = unicodedata.normalize("NFD", s.lower())
+        return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+    # un mot à la fois : autoriser l'espace dans le motif le rendait glouton et il
+    # avalait la phrase entière
+    bruts = re.findall(r"[^\W\d_]+", texte or "", re.UNICODE)
+    plies = [plier(b) for b in bruts]
+    k = len(forme.split())
+    for i in range(len(bruts) - k + 1):
+        if " ".join(plies[i:i + k]) == forme:
+            return " ".join(bruts[i:i + k])
+    return forme
 
 
-def _audace(ars):
-    """La bande où tu piochais, première moitié contre seconde."""
-    reg = [a.get("registre") for a in ars if a.get("registre") in _RISQUE]
-    if len(reg) < MIN_POUR_SCINDER:
-        return None
-    coupe = len(reg) // 2
-    av = sum(_RISQUE[r] for r in reg[:coupe]) / max(coupe, 1)
-    ap = sum(_RISQUE[r] for r in reg[coupe:]) / max(len(reg) - coupe, 1)
-    return {"avant": round(av, 3), "apres": round(ap, 3), "delta": round(ap - av, 3),
-            "bandes": dict(Counter(reg))}
+def _silences_rompus(ars):
+    """LE SILENCE QUI SE ROMPT — le seul énoncé qui tient dès la première arête.
 
+    MANIFESTE §5 : « le signal le plus fort n'est pas ce dont on parle le plus, c'est ce
+    dont on ne parle JAMAIS ». Le moment où ce silence casse est donc l'événement le plus
+    chargé du produit — et il n'était mesuré nulle part.
 
-def _territoires(ars):
-    """Quel territoire de la carte chaque arête a touché, et QUAND tu y es entré."""
-    try:
-        from .carte import territoire_de
-    except Exception:
-        return []
-    vus, ordre = {}, []
+    C'est un ÉVÉNEMENT, pas une tendance : un axe passe de zéro à cité. Il n'y a pas
+    d'hypothèse nulle à tester, donc pas de faux positif possible. Et il cite les mots de
+    la personne : rien à réfuter.
+
+    Le premier ressenti ne compte pas : tout y est forcément une première fois.
+    """
+    vus, evts = set(), []
     for i, a in enumerate(ars):
-        t = territoire_de(a.get("film_id"))
-        if not t or t["id"] in vus:
-            continue
-        vus[t["id"]] = True
-        ordre.append({"n": i + 1, "nom": t["nom"], "titre": a.get("titre"),
-                      "date": a.get("date")})
-    return ordre
+        touche = _touches(a.get("texte"))
+        for cle, formes in touche.items():
+            formes = [_forme_originale(a.get("texte"), f) for f in formes]
+            if cle not in vus and i > 0:
+                evts.append({"n": i + 1, "axe": cle, "libelle": AXES[cle]["libelle"],
+                             # _de() contracte : « le son » -> « du son ». Sans ça la
+                             # phrase donne « tu parlais de le son ».
+                             "de": _de(AXES[cle]["libelle"]),
+                             "mot": formes[0], "titre": a.get("titre"),
+                             "date": a.get("date"), "avant": i})
+            vus.add(cle)
+    return evts
 
 
-def _verdict(cap, ouv_av, ouv_ap, aud, att, n, salve):
-    """LA phrase. Elle doit être vraie avant d'être belle — donc beaucoup de refus."""
-    bouts = []
-
-    if ouv_av and ouv_ap:
-        r = ouv_ap / ouv_av
-        if r >= 1.08:
-            bouts.append("tu t'es élargi")
-        elif r <= 0.92:
-            bouts.append("tu t'es resserré")
-        else:
-            bouts.append("tu as tenu ton cap")
-
-    if aud and aud["delta"] >= 0.2:
-        bouts.append("et tu oses davantage")
-    elif aud and aud["delta"] <= -0.2:
-        bouts.append("et tu reviens vers ce que tu connais")
-
-    if not bouts:
-        return None
-
-    phrase = bouts[0][0].upper() + bouts[0][1:]
-    if len(bouts) > 1:
-        phrase += " " + " ".join(bouts[1:])
-    phrase += "."
-
-    if att and att.get("gagne"):
-        g = att["gagne"]["libelle"]
-        if att.get("perdu"):
-            # _de() contracte : « le rythme » -> « du rythme ». Sans ça on écrit
-            # « tu parlais le rythme ».
-            phrase += (f" Tu parlais {_de(att['perdu']['libelle'])}, "
-                       f"tu parles maintenant {_de(g)}.")
-        else:
-            phrase += f" {g[0].upper()}{g[1:]} a pris de la place dans tes mots."
-
-    if salve:
-        phrase += (" À nuancer : tout ça a été écrit dans la même séance — c'est une "
-                   "salve, pas encore une trajectoire dans le temps.")
-    elif n < 6:
-        phrase += f" Sur {n} ressentis seulement — la tendance est fragile."
-
-    return phrase
-
-
-def derive(graines, aretes, avec_empreintes=True):
-    """TON histoire réelle, mesurée. Pas une simulation."""
-    ars = sorted(aretes or [], key=_horodatage)
+def derive(graines, aretes):
+    """TON histoire réelle. Aucune phrase qui n'ait passé son test du hasard."""
+    ars = sorted([a for a in (aretes or [])], key=lambda a: a.get("date") or "")
     n = len(ars)
 
-    # --- rejouer le profil sur chaque préfixe -------------------------------------
-    etapes, precedent, chemin = [], None, 0.0
-    p0 = None
+    maintenant = max((_quand(a) for a in ars if _quand(a)), default=None)
+    p_tjs = profil(graines, ars)
+    if p_tjs is None:
+        return {"n": n, "etapes": [], "braise": None, "silences": [], "salve": False}
+
+    # Bornes de quantification GELÉES sur l'état final, réutilisées pour tous les états
+    # ET pour les deux couches. Sans ça chaque état se renormalise sur lui-même et deux
+    # crans consécutifs ne sont pas comparables.
+    _, _, LO, HI = grille(p_tjs)
+
+    etapes = []
+    precedent = None
     for k in range(n + 1):
         prefixe = ars[:k]
         p = profil(graines, prefixe)
         if p is None:
             continue
-        if p0 is None:
-            p0 = p
+        q, hauteur, _, _ = grille(p, LO, HI)
         pas = _angle(precedent, p) if precedent is not None else 0.0
-        chemin += pas or 0.0
         e = {
             "n": k,
             "date": prefixe[-1].get("date") if prefixe else None,
             "titre": prefixe[-1].get("titre") if prefixe else None,
-            "registre": prefixe[-1].get("registre") if prefixe else None,
             "pas": round(pas or 0.0, 2),
-            "cap": round(_angle(p0, p) or 0.0, 2),
-            "ouverture": round(_ouverture(p, graines, prefixe) or 0.0, 2),
+            "socle": [int(x) for x in q.flatten()],
         }
-        if avec_empreintes:
-            e["empreinte"] = empreinte(graines, prefixe)
+        if k > 0:
+            w = 1.5 * float(ars[k - 1].get("valence", 1.0))
+            e["pas_pct"] = _pas_percentile(_base(graines, ars[:k - 1]), w, pas, graine=k)
         etapes.append(e)
         precedent = p
 
-    # --- salve ou trajectoire ? ----------------------------------------------------
+    # --- LA BRAISE ------------------------------------------------------------------
+    braise = None
+    p_rec = _profil_recent(graines, ars, maintenant)
+    if p_rec is not None:
+        q_tjs, hauteur, _, _ = grille(p_tjs, LO, HI)
+        q_rec, _, _, _ = grille(p_rec, LO, HI)
+        d = np.abs(q_rec - q_tjs)
+        braise = {
+            "ecart": round(_angle(p_tjs, p_rec) or 0.0, 2),
+            "part": round(float((d > 0).mean()), 3),
+            # intensité 0..3 : au-delà de 3 paliers d'écart, la cellule est à fond
+            "cellules": [int(min(3, x)) for x in d.flatten()],
+        }
+
+    # --- salve ou trajectoire ? -------------------------------------------------------
     salve = False
     if n >= 2:
-        h = _heures(_horodatage(ars[0]), _horodatage(ars[-1]))
-        salve = h is not None and h <= SALVE_HEURES
+        d0, d1 = _quand(ars[0]), _quand(ars[-1])
+        if d0 and d1:
+            salve = abs((d1 - d0).total_seconds()) / 3600.0 <= SALVE_HEURES
 
-    ouv = [e["ouverture"] for e in etapes if e["ouverture"]]
-    ouv_av, ouv_ap = (ouv[0], ouv[-1]) if len(ouv) >= 2 else (None, None)
-    net = etapes[-1]["cap"] if etapes else 0.0
-    aud = _audace(ars)
-    att = _derive_attention(ars)
+    jours = 0.0
+    if n >= 2:
+        d0, d1 = _quand(ars[0]), _quand(ars[-1])
+        if d0 and d1:
+            jours = round(abs((d1 - d0).total_seconds()) / 86400.0, 1)
 
-    assez = n >= MIN_ARETES
     return {
         "n": n,
-        "assez": assez,
-        "manque": max(0, MIN_ARETES - n),
+        "jours": jours,
         "salve": salve,
+        "largeur": 24,
+        "hauteur": len(etapes[0]["socle"]) // 24 if etapes else 0,
+        "niveaux": NIVEAUX,
         "etapes": etapes,
-        "chemin": round(chemin, 2),
-        "net": round(net, 2),
-        # >1,4 : tu as zigzagué pour finir près du départ — de l'exploration, pas une dérive
-        "sinuosite": round(chemin / net, 2) if net > 1e-6 else None,
-        "ouverture": {"avant": ouv_av, "apres": ouv_ap,
-                      "delta": round(ouv_ap - ouv_av, 2) if ouv_av and ouv_ap else None},
-        "audace": aud,
-        "attention": att,
-        "territoires": _territoires(ars),
-        "verdict": _verdict(net, ouv_av, ouv_ap, aud, att, n, salve) if assez else None,
+        "braise": braise,
+        "silences": _silences_rompus(ars),
+        # AUCUN verdict. Le seul énoncé que ces données autorisent aujourd'hui est un
+        # constat de fait (la salve), et il est déjà là. Voir l'en-tête du module.
+        "verdict": None,
     }

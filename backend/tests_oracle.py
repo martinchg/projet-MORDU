@@ -282,8 +282,15 @@ def test_onboarding_exige_des_descriptions():
     check(f"avec descriptions : du vocabulaire ({len(parle['vocabulaire'])} mots)",
           len(parle["vocabulaire"]) >= 8)
     check("5 descriptions rendent le portrait fiable d'emblée", parle["fiable"] is True)
-    check("l'empreinte est plus fine avec les descriptions",
-          parle["empreinte"]["finesse"] > muet["empreinte"]["finesse"])
+    # CE QUE LES DESCRIPTIONS N'APPORTENT PAS, et il vaut mieux l'avoir écrit : elles ne
+    # déplacent PAS l'empreinte d'un pixel. Décrire une graine ajoute une arête sur le
+    # MÊME film, donc le vecteur reste colinéaire — unit((1 + 1,5·v)·Σvᵢ) = unit(Σvᵢ).
+    # Toute la valeur de l'onboarding est donc dans les MOTS (portrait, vocabulaire,
+    # silences rompus), pas dans la géométrie. Promettre l'inverse serait un mensonge.
+    check("décrire ses graines ne bouge pas la géométrie (colinéaire)",
+          parle["empreinte"]["cellules"] == muet["empreinte"]["cellules"])
+    check("… mais donne un portrait là où il n'y en avait aucun",
+          parle["portrait"]["phrase"] and not muet["portrait"]["phrase"])
 
 
 def test_profil_visible():
@@ -359,12 +366,19 @@ def test_empreinte():
     if autre:
         check("un autre goût donne une autre empreinte",
               a["cellules"] != empreinte(autre, [])["cellules"])
-    # la finesse suit le nombre d'arêtes : le glyphe se résout avec toi
-    faux = [{"film_id": i, "valence": 0.7} for i in seeds] * 4
-    fin = empreinte(seeds, faux)
-    check(f"la finesse monte avec les arêtes ({a['finesse']} -> {fin['finesse']})",
-          fin["finesse"] > a["finesse"])
-    check("plus d'arêtes = plus de paliers", fin["niveaux"] > a["niveaux"])
+    # LE COMPTEUR NE DOIT RIEN PEINDRE. La v1 agrégeait par blocs et faisait varier les
+    # paliers selon le NOMBRE d'arêtes : à goût strictement identique, jusqu'à 82,6 % de
+    # la grille changeait de couleur. C'était une jauge de complétion déguisée en glyphe
+    # (MANIFESTE §8). Ce test verrouille la suppression : ajouter des arêtes qui ne
+    # déplacent PAS le vecteur ne doit rien changer à l'image.
+    neutres = [{"film_id": i, "valence": 0.7} for i in seeds]
+    ref = empreinte(seeds, neutres)
+    for k in (2, 3, 4, 6):
+        rep = empreinte(seeds, neutres * k)
+        bouge = sum(1 for x, y in zip(ref["cellules"], rep["cellules"]) if x != y)
+        check(f"le compteur ne peint rien ({len(neutres)*k} arêtes, {bouge} cellules)",
+              bouge == 0, f"{bouge} cellules ont bougé sans que le goût change")
+    check("paliers figés", ref["niveaux"] == a["niveaux"] == 11)
     check("les cellules restent dans les paliers",
           all(0 <= c < a["niveaux"] for c in a["cellules"]))
     # Les dimensions sont ORDONNÉES pour que les corrélées soient voisines : sans ça
@@ -444,56 +458,101 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
-def test_derive_ne_raconte_pas_de_salades():
-    """L'évolution est le cœur de l'empreinte — donc c'est là qu'inventer coûte le plus.
+def test_derive_se_tait_sur_du_bruit():
+    """LE test de la dérive : sur du hasard pur, elle ne doit rien raconter.
 
-    Trois refus verrouillés : sous 3 arêtes on ne conclut pas, une salve écrite d'un bloc
-    est signalée comme telle, et une dérive lexicale sous le seuil de bruit reste muette.
+    La v1 produisait une phrase sur 40 historiques aléatoires sur 40 (« tu t'es élargi »
+    60/60), et elle se serait armée à la 3e arête. Les mesures étaient des constantes
+    déguisées : l'ouverture monte mécaniquement avec le nombre de films, le cap mesure la
+    dilution d'un barycentre, la sinuosité décroît en k^-0,5 pour tout le monde.
+
+    Ici on refait exactement l'expérience qui l'avait démasquée.
+    """
+    import random
+    from recommender.derive import derive
+    from recommender.recommend import _movies
+    seeds = ids_from_titles(GRAINES)
+    phrases = ["un film correct", "bof, je ne sais pas trop", "pas mal du tout",
+               "je m'attendais a autre chose", "sympa sans plus"]
+    rng = random.Random(2026)
+    bavard = 0
+    for essai in range(40):
+        nb = rng.choice((4, 8, 12, 20))
+        hist = []
+        for j in range(nb):
+            m = rng.choice(_movies)
+            hist.append({"film_id": m["id"], "titre": m["title"],
+                         "texte": rng.choice(phrases), "valence": rng.uniform(-1, 1),
+                         "registre": rng.choice(("connu", "ecart", "pari")),
+                         "date": f"2026-{1 + j // 28:02d}-{1 + j % 28:02d}T10:00:00+00:00"})
+        if derive(seeds, hist).get("verdict"):
+            bavard += 1
+    check(f"40 historiques aléatoires, {bavard} phrase(s) produite(s)", bavard == 0,
+          f"{bavard}/40 — la dérive raconte des salades")
+
+    # et la braise doit être STRICTEMENT nulle quand tout est écrit d'un bloc : sans écart
+    # de temps, profil récent == profil de toujours, il n'y a rien à montrer
+    salve = [{"film_id": i, "titre": "x", "texte": "un film", "valence": 0.7,
+              "date": f"2026-07-01T1{k}:00:00+00:00"} for k, i in enumerate(seeds[:3])]
+    d = derive(seeds, salve)
+    check("une salve n'allume aucune braise", d["braise"]["part"] == 0.0,
+          str(d["braise"]["part"]))
+    check("une salve est reconnue comme telle", d["salve"] is True)
+
+
+def test_derive_ce_qui_reste():
+    """Ce que la dérive a le droit de dire — et qu'elle mesure vraiment.
+
+    LA BRAISE : deux profils, celui de toujours et celui de maintenant (demi-vie 30 j).
+    Le profil cumulé est une moyenne, donc il converge ET il est invariant à l'ordre : il
+    ne peut contenir aucune information temporelle. Le profil récent, lui, ne converge
+    jamais — c'est le seul mouvement réel disponible.
+
+    LE SILENCE ROMPU : un axe dont tu n'avais jamais parlé et dont tu parles. C'est un
+    fait daté, pas une tendance : il n'y a pas d'hypothèse nulle, donc pas de faux
+    positif possible.
     """
     from recommender.derive import derive
     seeds = ids_from_titles(GRAINES)
 
-    d = derive(seeds, _histoire(["beau", "long"], ["connu", "pari"], [1, 2]),
-               avec_empreintes=False)
-    check("2 arêtes : pas de verdict", d["verdict"] is None and not d["assez"])
-    check("2 arêtes : on dit ce qui manque", d["manque"] == 1, str(d["manque"]))
+    img = "les couleurs et la lumiere, un cadrage soigne"
+    son = "la bande son est magnifique, le silence aussi"
+    per = "le jeu des acteurs porte tout le film"
 
-    meme_jour = _histoire(["beau", "long", "lent", "sombre"],
-                          ["connu"] * 4, [1, 1, 1, 1])
-    for i, a in enumerate(meme_jour):
-        a["date"] = f"2026-07-01T1{i}:00:00+00:00"
-    ds = derive(seeds, meme_jour, avec_empreintes=False)
-    check("écrit d'un bloc = salve", ds["salve"] is True)
-    check("la salve est dite dans le verdict",
-          ds["verdict"] and "salve" in ds["verdict"], str(ds["verdict"]))
+    d = derive(seeds, _histoire([img, img, son, per], ["connu"] * 4, [1, 5, 12, 20]))
+    check("aucun verdict, jamais", d["verdict"] is None)
+    check("étalé sur 20 jours : pas une salve", d["salve"] is False)
+    check(f"amplitude en jours mesurée ({d['jours']})", d["jours"] >= 19)
 
-    # dérive lexicale FRANCHE : image -> personnages
-    img = "les couleurs et la lumiere sont magnifiques, un cadrage sublime"
-    per = "le jeu des acteurs, l'interpretation et le casting portent le role"
-    dl = derive(seeds, _histoire([img, img, per, per], ["connu", "connu", "ecart", "pari"],
-                                 [1, 5, 12, 20]), avec_empreintes=False)
-    check("dérive d'attention détectée",
-          dl["attention"] and dl["attention"]["gagne"]
-          and dl["attention"]["gagne"]["cle"] == "personnages",
-          str(dl["attention"] and dl["attention"]["gagne"]))
-    check("l'axe abandonné est nommé",
-          dl["attention"]["perdu"] and dl["attention"]["perdu"]["cle"] == "image",
-          str(dl["attention"]["perdu"]))
-    check("audace en hausse mesurée", dl["audace"] and dl["audace"]["delta"] > 0,
-          str(dl["audace"]))
-    check("le verdict contracte l'article",
-          "parlais de l'image" in (dl["verdict"] or ""), str(dl["verdict"]))
-    check("étalé sur 20 jours : pas une salve", dl["salve"] is False)
+    axes_rompus = [s["axe"] for s in d["silences"]]
+    check("le silence sur le son est rompu, et daté",
+          "son" in axes_rompus, str(axes_rompus))
+    check("le silence sur les personnages est rompu",
+          "personnages" in axes_rompus, str(axes_rompus))
+    check("la 1re arête ne compte pas comme une rupture",
+          all(s["n"] > 1 for s in d["silences"]), str([s["n"] for s in d["silences"]]))
+    check("chaque rupture cite le mot qui l'a déclenchée",
+          all(s["mot"] for s in d["silences"]))
 
-    # Inégalité triangulaire sur la sphère : la somme des pas ne peut pas être plus courte
-    # que le vol d'oiseau. C'est ce qui rend la sinuosité interprétable — et NON, le cap
-    # n'est pas monotone : revenir sur ses pas le fait redescendre, c'est même tout
-    # l'intérêt de la mesure.
-    caps = [e["cap"] for e in dl["etapes"]]
-    check("le cap part de zéro", caps[0] == 0.0, str(caps))
-    check("chemin >= distance à vol d'oiseau", dl["chemin"] >= dl["net"] - 1e-6,
-          f"{dl['chemin']} < {dl['net']}")
-    check("sinuosité >= 1", dl["sinuosite"] >= 1.0 - 1e-6, str(dl["sinuosite"]))
+    # la braise doit EXISTER dès qu'il y a du temps, et grandir avec l'écart des dates
+    check("du temps passe -> une braise s'allume", d["braise"]["part"] > 0,
+          str(d["braise"]))
+    loin = derive(seeds, _histoire([img, img, son, per], ["connu"] * 4, [1, 2, 3, 28]))
+    check(f"plus de temps = plus de braise ({d['braise']['part']} vs {loin['braise']['part']})",
+          loin["braise"]["part"] >= d["braise"]["part"] or loin["braise"]["ecart"] > 0)
+
+    # le témoin : un pas ne vaut que comparé à ce qu'aurait fait n'importe quel film
+    pcts = [e.get("pas_pct") for e in d["etapes"] if e["n"] > 0]
+    check("chaque pas est situé dans son témoin", all(p is not None for p in pcts),
+          str(pcts))
+    check("les percentiles sont bien des percentiles",
+          all(0.0 <= p <= 1.0 for p in pcts), str(pcts))
+
+    # tous les états partagent la MÊME quantification, sinon ils sont incomparables
+    tailles = {len(e["socle"]) for e in d["etapes"]}
+    check("tous les états ont la même grille", len(tailles) == 1, str(tailles))
+    check("les paliers tiennent dans la palette",
+          all(0 <= c < 11 for e in d["etapes"] for c in e["socle"]))
 
 
 if __name__ == "__main__":
@@ -505,7 +564,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_empreinte, test_carte_du_gout,
-              test_derive_ne_raconte_pas_de_salades,
+              test_derive_se_tait_sur_du_bruit, test_derive_ce_qui_reste,
               test_serrure_preserve_les_graines):
         print(f"\n{f.__name__}")
         f()

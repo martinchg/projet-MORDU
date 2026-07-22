@@ -3,30 +3,38 @@
 <link rel="stylesheet" href="mordu.css"><script src="mordu.js"></script>
 <style>
 /* LA DÉRIVE — la seule page du produit où le temps est l'axe principal.
-   Tout le reste de MORDU montre un ÉTAT ; ici on montre un MOUVEMENT. D'où le parti
-   pris : un seul glyphe, grand, qu'on fait glisser dans le temps — plutôt qu'une
-   planche de vignettes où l'œil doit reconstruire l'animation tout seul. */
-.scene{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:26px;align-items:start;
-  margin-top:18px}
-@media(max-width:860px){.scene{grid-template-columns:minmax(0,1fr)}}
+   Tout le reste de MORDU montre un ÉTAT ; ici on montre un MOUVEMENT.
 
-.tete{border:1px solid var(--red);background:rgba(228,19,15,.07);padding:16px 18px;
-  font-size:16.5px;line-height:1.5;max-width:72ch}
-.tete.rien{border-color:var(--line);background:none;color:var(--mut);font-size:14px}
-.tete b{color:var(--red)}
+   Une grille, deux âges, un geste. Le SOCLE est le profil de toujours, quantifié sur les
+   couleurs de nuit — il bouge lentement, il n'est jamais rouge, c'est « qui tu es ». La
+   BRAISE est posée par-dessus, uniquement là où le profil RÉCENT (demi-vie 30 jours)
+   tombe sur un autre palier — c'est « où tu es en train d'aller ».
+
+   Elle naît vide et grossit avec la vie. Aucun compteur, aucune barre : la croissance EST
+   la donnée. Et quand il n'y a rien à dire, l'écran doit rester beau et muet — c'est le
+   test d'acceptation de cette page. */
+.scene{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:26px;align-items:start;
+  margin-top:18px}
+@media(max-width:880px){.scene{grid-template-columns:minmax(0,1fr)}}
+
+.tete{border-left:2px solid var(--red);padding:2px 0 2px 15px;font-size:15.5px;
+  line-height:1.55;max-width:70ch;color:var(--ink)}
+.tete.mut{border-color:var(--line);color:var(--mut);font-size:14px}
 
 /* le glyphe reste une SIGNATURE : au-delà de ~520px les cellules deviennent des pavés et
-   on ne lit plus une image, on lit un damier. */
+   on lit un damier au lieu d'une image. */
 .visu{position:relative;max-width:520px}
-#gros{image-rendering:pixelated;width:100%;height:auto;border:1px solid var(--line);
-  display:block;background:#000}
-.legende{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);
-  font-size:11px;color:var(--mut);margin-top:10px;flex-wrap:wrap}
-.legende b{color:var(--ink);font-weight:400}
-.legende .pas{color:var(--red)}
+.visu canvas{image-rendering:pixelated;width:100%;height:auto;display:block}
+#socle{border:1px solid var(--line);background:#000}
+#braise{position:absolute;inset:0;border:1px solid transparent;pointer-events:none}
 
-/* la réglette : c'est ELLE le geste principal, donc elle est large et visible */
-.piste{display:flex;align-items:center;gap:12px;margin-top:14px}
+.legende{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);
+  font-size:11px;color:var(--mut);margin-top:10px;flex-wrap:wrap;max-width:520px}
+.legende b{color:var(--ink);font-weight:400}
+.legende em{color:var(--red);font-style:normal}
+
+/* la réglette : c'est ELLE le geste principal */
+.piste{display:flex;align-items:center;gap:12px;margin-top:12px;max-width:520px}
 input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:26px;background:none;
   cursor:grab}
 input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
@@ -36,36 +44,26 @@ input[type=range]::-moz-range-track{height:2px;background:var(--line)}
 input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red);border:none;
   border-radius:0}
 
-.mesures{display:grid;gap:12px}
-.m{border:1px solid var(--line);padding:12px 13px}
-.m .n{font-family:var(--disp);font-size:30px;line-height:1;letter-spacing:.01em}
-.m .n small{font-size:14px;color:var(--mut);font-family:var(--mono)}
-.m .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
-  color:var(--red);margin-bottom:7px}
-.m .d{font-size:11.5px;color:var(--mut);line-height:1.5;margin-top:7px}
-.m.creux .n{color:var(--mut)}
-
-.bandes{display:flex;height:7px;margin-top:9px;border:1px solid var(--line)}
-.bandes i{display:block}
-.bandes .connu{background:#2a2f38} .bandes .ecart{background:#6b5a3e}
-.bandes .pari{background:var(--red)}
-
 .etapes{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
-.et{all:unset;cursor:pointer;text-align:center;opacity:.5;transition:opacity .15s}
+.et{all:unset;cursor:pointer;text-align:center;opacity:.45;transition:opacity .15s}
 .et:hover,.et.on{opacity:1}
-.et canvas{image-rendering:pixelated;width:72px;height:48px;border:1px solid var(--line);
+.et canvas{image-rendering:pixelated;width:66px;height:44px;border:1px solid var(--line);
   display:block}
 .et.on canvas{border-color:var(--red)}
 .et span{font-family:var(--mono);font-size:9px;color:var(--mut);display:block;margin-top:5px}
 
-.terr{border-left:2px solid var(--line);padding-left:14px;margin-top:8px}
-.terr div{font-size:13px;margin:9px 0;line-height:1.45}
-.terr b{color:var(--red);font-family:var(--mono);font-size:11px}
-.terr span{color:var(--mut);font-size:11.5px}
+.cote{display:grid;gap:14px}
+.bloc{border:1px solid var(--line);padding:13px 14px}
+.bloc .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--red);margin-bottom:9px}
+.bloc p{margin:0;font-size:12.5px;color:var(--mut);line-height:1.55}
+.bloc .g{font-family:var(--disp);font-size:29px;line-height:1;margin-bottom:6px}
 
-.diff{display:flex;gap:14px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
-#diff{image-rendering:pixelated;width:230px;height:auto;border:1px solid var(--line);
-  background:#000}
+.evts{border-left:2px solid var(--line);padding-left:15px}
+.evt{margin:14px 0;font-size:14px;line-height:1.5}
+.evt q{color:var(--red);font-style:normal}
+.evt q::before{content:"« "} .evt q::after{content:" »"}
+.evt span{display:block;font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:4px}
 </style>
 
 <div class="wrap">
@@ -75,19 +73,20 @@ input[type=range]::-moz-range-thumb{width:13px;height:22px;background:var(--red)
   <a href="empreinte-evolution.html" aria-current="page">Ma dérive</a></nav>
 
 <h2>Ta dérive</h2>
-<p class="hint">Ton empreinte <b>rejouée sur ton histoire réelle</b> — un état par ressenti,
-recalculé depuis tes arêtes horodatées. <span class="long">Rien n'est simulé et rien n'est
-stocké&nbsp;: si tu effaçais un ressenti, la trajectoire se réécrirait toute seule.</span></p>
+<p class="hint">Une grille, <b>deux âges</b>. En couleurs de nuit&nbsp;: tout ce que tu as
+raconté. En rouge&nbsp;: <b>là où ce que tu racontes en ce moment tire ailleurs</b>.
+<span class="long">Rien n'est simulé et rien n'est stocké — tes arêtes sont horodatées, donc
+l'histoire est déjà dans les données.</span></p>
 
-<div id="tete" class="tete rien">…</div>
+<div id="tete" class="tete mut">…</div>
 
 <div class="scene">
   <div>
-    <div class="visu"><canvas id="gros"></canvas></div>
-    <div class="legende">
-      <span id="ou">—</span>
-      <span id="delta" class="pas"></span>
+    <div class="visu">
+      <canvas id="socle"></canvas>
+      <canvas id="braise"></canvas>
     </div>
+    <div class="legende"><span id="ou">—</span><span id="pas"></span></div>
     <div class="piste">
       <button class="btn" id="play" style="margin:0;padding:9px 14px">▶ rejouer</button>
       <input type="range" id="scrub" min="0" max="0" step="0.01" value="0"
@@ -95,200 +94,144 @@ stocké&nbsp;: si tu effaçais un ressenti, la trajectoire se réécrirait toute
     </div>
     <div class="etapes" id="etapes"></div>
   </div>
-
-  <div class="mesures" id="mesures"></div>
+  <div class="cote" id="cote"></div>
 </div>
 
-<h2>Ce qui a bougé</h2>
-<p class="hint">La même grille, mais chaque cellule montre <b>de combien elle s'est déplacée</b>
-entre ton premier état et le dernier. Le noir n'a pas bougé, le rouge a basculé.</p>
-<div class="diff">
-  <canvas id="diff"></canvas>
-  <p class="hint" style="flex:1;min-width:240px;margin:0" id="difftxt"></p>
+<div id="bloc-evts" style="display:none">
+  <h2>Les silences que tu as rompus</h2>
+  <p class="hint">Le §5 du manifeste dit que le signal le plus fort n'est pas ce dont tu
+  parles le plus, mais <b>ce dont tu ne parles jamais</b>. Voici les fois où ce silence a
+  cassé. Ce ne sont pas des tendances&nbsp;: ce sont des faits datés, avec ton mot.</p>
+  <div class="evts" id="evts"></div>
 </div>
 
-<div id="bloc-terr" style="display:none">
-  <h2>Tes territoires, dans l'ordre</h2>
-  <p class="hint">Où chaque ressenti est tombé sur la carte du goût — et donc quand tu es
-  entré quelque part pour la première fois.</p>
-  <div class="terr" id="terr"></div>
-</div>
-
-<p class="note">Les quatre mesures sortent toutes de données qui existaient déjà&nbsp;: le
-vecteur profil (cap, ouverture), la bande où l'oracle avait rangé la carte que tu as choisie
-(audace) et le texte brut de tes ressentis (attention). Aucune n'a demandé à stocker quoi que
-ce soit de neuf — c'est le §4 du manifeste&nbsp;: les profils sont des <i>vues</i>.</p>
+<p class="note">Ce que cette page ne fait plus, et pourquoi&nbsp;: elle affichait un cap en
+degrés, une « ouverture », une « audace » et un verdict en français. Passée sur 40 historiques
+<b>tirés au hasard</b>, elle produisait une phrase 40 fois sur 40, et « tu t'es élargi »
+sortait 60 fois sur 60. Ces mesures montaient mécaniquement avec le nombre de films, pas avec
+le goût. Le profil cumulé est une moyenne&nbsp;: il converge, et il est invariant à l'ordre —
+il ne peut donc contenir aucune information sur le temps. Seul le profil <i>récent</i> en
+contient. Le reste a été supprimé plutôt que réglé.</p>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
 const PAL=MORDU.PALETTE;
-// même convention que les autres écrans : le front est servi en statique, l'API vit sur
-// 8000, et ?api= permet de pointer ailleurs sans toucher au code
 const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
-/* Un état d'empreinte -> un tableau de valeurs continues dans [0,1]. Passer par cette
-   forme NORMALISÉE est ce qui rend le fondu possible : deux états successifs n'ont ni le
-   même nombre de paliers ni la même taille de blocs, donc on ne peut pas interpoler les
-   entiers bruts. */
-const norm = E => E.cellules.map(v => v / Math.max(E.niveaux - 1, 1));
-
-function peindre(cv, vals, W, H, rouge){
+function couche(cv, cells, W, H, rouge){
   cv.width=W; cv.height=H;
   const ctx=cv.getContext("2d"), im=ctx.createImageData(W,H), d=im.data;
-  vals.forEach((t,i)=>{
-    let c;
-    if(rouge){                       // rampe noir -> rouge, pour la carte des écarts
-      const k=Math.min(1,Math.max(0,t));
-      c=[Math.round(228*k), Math.round(19*k), Math.round(15*k)];
+  cells.forEach((v,i)=>{
+    if(rouge){
+      // la braise : rouge pur, opacité = intensité de l'écart (0 à 3 paliers)
+      d[i*4]=228; d[i*4+1]=19; d[i*4+2]=15; d[i*4+3]=Math.round(255*Math.min(1,v/3));
     }else{
-      c=PAL[Math.min(PAL.length-1, Math.round(t*(PAL.length-2)))];
+      const t=v/10;   // 11 paliers figés, du sombre au clair
+      const c=PAL[Math.min(PAL.length-1, Math.round(t*(PAL.length-2)))];
+      d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
     }
-    d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; d[i*4+3]=255;
   });
   ctx.putImageData(im,0,0);
 }
 
-const deg = v => (v==null? "—" : v.toFixed(1).replace(".",",")+"°");
-const vir = v => v.toFixed(1).replace(".",",");
-
-function mesure(titre, valeur, detail, creux){
-  return `<div class="m${creux?" creux":""}"><div class="t">${titre}</div>
-          <div class="n">${valeur}</div><div class="d">${detail}</div></div>`;
-}
+const pct = v => Math.round(v*100)+" %";
 
 fetch(API+"/api/evolution").then(r=>r.json()).then(D=>{
   const E=D.etapes||[];
-  if(!E.length){ $("tete").textContent="Aucune arête : il n'y a pas encore d'histoire à rejouer."; return; }
+  if(!E.length){ $("tete").textContent="Aucune arête : il n'y a rien à rejouer."; return; }
+  const W=D.largeur, H=D.hauteur;
 
-  const W=E[0].empreinte.largeur, H=E[0].empreinte.hauteur;
-  const VALS=E.map(e=>norm(e.empreinte));
+  /* ---- la braise, posée une fois : elle décrit MAINTENANT, pas un état passé ---- */
+  const B=D.braise;
+  if(B && B.part>0) couche($("braise"), B.cellules, W, H, true);
+  else $("braise").style.display="none";
 
-  /* ---- le verdict, ou le refus de conclure ---- */
+  /* ---- ce qu'on a le droit de dire ---- */
   const t=$("tete");
-  if(D.verdict){ t.className="tete"; t.innerHTML=D.verdict; }
-  else{
-    t.className="tete rien";
-    t.innerHTML=`Pas encore de quoi parler d'évolution&nbsp;: il manque
-      <b style="color:var(--ink)">${D.manque} ressenti${D.manque>1?"s":""}</b>.
-      Deux points font une ligne, pas une trajectoire — et j'aime mieux te le dire que
-      t'inventer un récit. Le plus rapide&nbsp;:
-      <a href="profil.html" style="color:var(--red)">décrire tes films de départ</a>.`;
+  if(D.salve){
+    t.className="tete";
+    t.innerHTML=`<b>${D.n} ressentis écrits dans la même séance.</b> C'est une soirée, pas
+      une trajectoire — et tant que le temps n'aura pas passé, je ne te raconterai rien.
+      La grille ci-dessous est ta signature complète ; elle ne porte aucune braise, parce
+      qu'il n'y a rigoureusement rien à montrer.`;
+  }else if(B && B.part>0){
+    t.className="tete";
+    t.innerHTML=`Ce que tu racontes en ce moment tire <b>à ${B.ecart.toFixed(1).replace(".",",")}°</b>
+      de tout ce que tu as raconté. Les braises rouges sont les régions de ton goût où
+      l'écart se voit — <b>${pct(B.part)}</b> de la grille.`;
+  }else{
+    t.className="tete mut";
+    t.innerHTML=`Pas encore d'écart entre ce que tu racontes en ce moment et l'ensemble.
+      C'est un résultat, pas un vide : à ce stade, le temps ne te déplace pas.`;
   }
 
-  /* ---- la réglette : le geste principal ---- */
+  /* ---- la réglette ---- */
   const scrub=$("scrub"); scrub.max=E.length-1;
-  let vignettes=[];                    // résolu une fois : requêter le DOM à chaque
-                                       // image du rejeu ferait ramer la réglette
+  let vignettes=[];
   function rendre(x){
-    const i=Math.min(E.length-1, Math.floor(x)), j=Math.min(E.length-1, i+1), f=x-i;
-    // fondu entre deux états RÉELS — l'entre-deux n'existe pas, il n'est que du transport
-    const v=VALS[i].map((a,k)=>a+(VALS[j][k]-a)*f);
-    peindre($("gros"), v, W, H, false);
-    const e=E[Math.round(x)];
-    $("ou").innerHTML = e.n===0
-      ? "point de départ — <b>tes seuls films de départ</b>"
-      : `<b>${e.n}</b> ressenti${e.n>1?"s":""} · <b>${e.titre||""}</b>` +
+    const i=Math.min(E.length-1, Math.round(x));
+    couche($("socle"), E[i].socle, W, H, false);
+    const e=E[i];
+    $("ou").innerHTML = e.n===0 ? "point de départ — <b>tes films de départ seuls</b>"
+      : `<b>${e.n}</b> ressenti${e.n>1?"s":""} · <b>${e.titre||""}</b>`+
         (e.date? ` · ${e.date.slice(8,10)}/${e.date.slice(5,7)}` : "");
-    $("delta").textContent = e.n===0 ? "" : `+${deg(e.pas)} · cap ${deg(e.cap)}`;
-    vignettes.forEach((b,k)=>b.classList.toggle("on",k===Math.round(x)));
+    // un pas en degrés ne veut rien dire seul : ce qui parle, c'est sa place parmi les
+    // pas qu'auraient produits 400 films au hasard depuis le même état
+    $("pas").innerHTML = (e.n===0 || e.pas_pct==null) ? ""
+      : (e.pas_pct>=0.9 ? `<em>ce film t'a tiré plus loin que ${pct(e.pas_pct)} des films</em>`
+        : e.pas_pct<=0.15 ? `en plein dans ton axe — ${pct(1-e.pas_pct)} des films t'auraient déplacé davantage`
+        : `déplacement ordinaire (${pct(e.pas_pct)} des films font moins)`);
+    vignettes.forEach((b,k)=>b.classList.toggle("on",k===i));
+    // la braise décrit AUJOURD'HUI : on la masque dès qu'on remonte dans le passé, sinon
+    // on la lirait comme si elle avait existé à ce moment-là
+    $("braise").style.opacity = (B && B.part>0 && i===E.length-1) ? 1 : 0;
   }
   scrub.addEventListener("input",()=>rendre(+scrub.value));
 
-  /* rejeu animé : c'est ce qui fait SENTIR le mouvement au lieu de le lire */
-  let brut=null;
-  function rejouer(){
-    if(brut) cancelAnimationFrame(brut);
-    if(matchMedia("(prefers-reduced-motion:reduce)").matches){
-      scrub.value=E.length-1; rendre(E.length-1); return;
-    }
-    const t0=performance.now(), duree=380*Math.max(E.length-1,1);
-    (function pas(now){
-      const x=Math.min(E.length-1, (now-t0)/duree*(E.length-1));
-      scrub.value=x; rendre(x);
-      if(x<E.length-1) brut=requestAnimationFrame(pas);
-    })(t0);
-  }
-  $("play").addEventListener("click",rejouer);
-
-  /* ---- la bande d'étapes, cliquable ---- */
-  $("etapes").innerHTML=E.map((e,i)=>
-    `<button class="et" data-i="${i}"><canvas></canvas><span>${e.n}</span></button>`).join("");
+  $("etapes").innerHTML=E.map(e=>`<button class="et"><canvas></canvas><span>${e.n}</span></button>`).join("");
   vignettes=[...document.querySelectorAll(".et")];
   vignettes.forEach((b,i)=>{
-    peindre(b.querySelector("canvas"), VALS[i], W, H, false);
+    couche(b.querySelector("canvas"), E[i].socle, W, H, false);
     b.addEventListener("click",()=>{ scrub.value=i; rendre(i); });
   });
 
-  /* ---- les quatre mesures ---- */
-  const o=D.ouverture||{}, a=D.audace, at=D.attention;
-  let html="";
-  html+=mesure("Cap parcouru", deg(D.net),
-    `L'angle entre ton vecteur de départ et celui d'aujourd'hui.
-     Chemin réellement parcouru&nbsp;: ${deg(D.chemin)}` +
-    (D.sinuosite? ` — soit ${vir(D.sinuosite)}× la ligne droite, donc tu as
-     ${D.sinuosite>1.4?"zigzagué":"avancé assez droit"}.` : "."));
+  let brut=null;
+  $("play").addEventListener("click",()=>{
+    if(brut) cancelAnimationFrame(brut);
+    if(matchMedia("(prefers-reduced-motion:reduce)").matches){ rendre(E.length-1); return; }
+    const t0=performance.now(), duree=420*Math.max(E.length-1,1);
+    (function pas(now){
+      const x=Math.min(E.length-1,(now-t0)/duree*(E.length-1));
+      scrub.value=x; rendre(x);
+      if(x<E.length-1) brut=requestAnimationFrame(pas);
+    })(t0);
+  });
 
-  const dOuv=o.delta;
-  html+=mesure("Ouverture", o.apres!=null? deg(o.apres) : "—",
-    o.avant==null? "Il faut au moins deux états pour la mesurer."
-      : `L'écart moyen entre ton centre et tes films. Tu es parti de ${deg(o.avant)}
-         (${dOuv>0?"+":""}${vir(dOuv)}°) —
-         ${dOuv>0.5?"tu t'élargis":dOuv<-0.5?"tu te resserres":"tu tiens ton périmètre"}.`,
-    o.avant==null);
+  /* ---- la colonne : des faits, pas des conclusions ---- */
+  $("cote").innerHTML=
+    `<div class="bloc"><div class="t">Amplitude</div>
+      <div class="g">${D.jours<1? "&lt; 1" : Math.round(D.jours)}<small style="font-size:14px;color:var(--mut)"> j</small></div>
+      <p>Entre ton premier et ton dernier ressenti. C'est ça, et non leur nombre, qui décide
+      si une évolution est mesurable.</p></div>
+     <div class="bloc"><div class="t">Braise</div>
+      <div class="g">${B? pct(B.part) : "—"}</div>
+      <p>Part de la grille où ton profil <b>récent</b> (demi-vie 30 jours) tombe sur un
+      autre palier que ton profil de toujours. Elle naît vide et grandit avec la vie.</p></div>
+     <div class="bloc"><div class="t">Silences rompus</div>
+      <div class="g">${(D.silences||[]).length}</div>
+      <p>Les fois où tu as parlé, pour la première fois, d'une chose dont tu n'avais jamais
+      parlé. Zéro statistique là-dedans : ce sont tes mots.</p></div>`;
 
-  if(a){
-    const tot=Object.values(a.bandes).reduce((x,y)=>x+y,0)||1;
-    const w=k=>Math.round((a.bandes[k]||0)/tot*100);
-    html+=mesure("Audace", Math.round(a.apres*100)+"<small> / 100</small>",
-      `Dans quelle bande tu piochais&nbsp;: ${Math.round(a.avant*100)} au début,
-       ${Math.round(a.apres*100)} ensuite.` +
-      `<div class="bandes"><i class="connu" style="width:${w("connu")}%"></i>
-        <i class="ecart" style="width:${w("ecart")}%"></i>
-        <i class="pari" style="width:${w("pari")}%"></i></div>`);
-  }else{
-    html+=mesure("Audace","—",
-      "Il faut quatre ressentis pour comparer deux moitiés de ton parcours.",true);
-  }
-
-  if(at && (at.gagne||at.perdu)){
-    const g=at.gagne, p=at.perdu;
-    html+=mesure("Attention", g? g.libelle : p.libelle,
-      g&&p? `Tu parlais surtout de ${p.libelle}, tu parles maintenant de ${g.libelle}.
-             Mesuré sur tes mots bruts, jamais sur une version relue.`
-        : "Ce que tu regardes dans un film s'est déplacé — mesuré sur tes mots bruts.");
-  }else{
-    html+=mesure("Attention","—",
-      at? "Ton vocabulaire n'a pas bougé de façon significative — ce n'est pas un échec, c'est une constante."
-        : "Il faut quatre ressentis écrits pour comparer ton vocabulaire d'avant et d'après.",
-      true);
-  }
-  $("mesures").innerHTML=html;
-
-  /* ---- la carte des écarts ---- */
-  const A=VALS[0], B=VALS[VALS.length-1];
-  const ecarts=A.map((x,k)=>Math.abs(B[k]-x));
-  const max=Math.max(...ecarts, 1e-6);
-  peindre($("diff"), ecarts.map(x=>x/max), W, H, true);
-  const bouge=ecarts.filter(x=>x>max*0.5).length;
-  $("difftxt").innerHTML=`<b>${bouge}</b> cellules sur ${ecarts.length} ont basculé de plus de
-    la moitié de l'écart maximum. Ce n'est pas décoratif&nbsp;: une cellule = un groupe de
-    dimensions du vecteur, et les dimensions sont <b>ordonnées pour que les corrélées soient
-    voisines</b> — donc les taches rouges sont des <i>régions</i> de ton goût qui ont bougé
-    ensemble, pas du bruit éparpillé.` +
-    (D.salve? `<br><br>Réserve&nbsp;: tout a été écrit dans la même séance. Ce qui a bougé ici
-    est réel, mais ça ne raconte pas encore le temps qui passe.` : "");
-
-  /* ---- territoires ---- */
-  if((D.territoires||[]).length){
-    $("bloc-terr").style.display="";
-    $("terr").innerHTML=D.territoires.map(t=>
-      `<div><b>${t.nom}</b><br>${t.titre}
-       <span>· ${t.n}${t.n===1?"ᵉʳ":"ᵉ"} ressenti${t.date?" · "+t.date.slice(8,10)+"/"+t.date.slice(5,7):""}</span></div>`
+  if((D.silences||[]).length){
+    $("bloc-evts").style.display="";
+    $("evts").innerHTML=D.silences.map(s=>
+      `<div class="evt">Tu as écrit <q>${s.mot}</q> — après ${s.avant} ressenti${s.avant>1?"s":""},
+        c'était la première fois que tu parlais ${s.de}.
+        <span>${s.titre||""}${s.date? " · "+s.date.slice(8,10)+"/"+s.date.slice(5,7):""}</span></div>`
     ).join("");
   }
 
   rendre(E.length-1);
-  setTimeout(rejouer, 250);
 });
 </script>
