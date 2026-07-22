@@ -416,6 +416,33 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_elision_sans_rouvrir_les_homographes():
+    """« l'intrigue » doit compter comme « intrigue » — sans réveiller les pièges purgés.
+
+    _norm sort « l'intrigue » en UN jeton : le mot n'était donc jamais reconnu, alors que
+    « une intrigue » l'était. Le portrait pouvait écrire « tu ne parles jamais de
+    l'intrigue » à quelqu'un qui venait d'écrire « l'intrigue est faible ».
+
+    Le correctif NAÏF (dé-éliser le flux de jetons) rouvre la famille d'homographes que
+    l'en-tête d'axes.py déclare avoir purgée : « d'un » devient « un », tout se décale, et
+    « il parle d'un ton sec » rallume l'atmosphère. D'où la séparation : on enrichit
+    l'ensemble des mots vus, les EXPRESSIONS gardent les jetons originaux.
+    """
+    from recommender.axes import _touches
+    for texte, attendu in [("l'intrigue est faible", "intrigue"),
+                           ("une intrigue faible", "intrigue"),
+                           ("l'image est sublime", "image"),
+                           ("d'une mise en scene virtuose", "mise en scène")]:
+        check(f"élision reconnue — « {texte} »", attendu in _touches(texte),
+              str(sorted(_touches(texte))))
+
+    # les pièges mesurés qui ne doivent JAMAIS revenir
+    for texte in ("il parle d'un ton sec", "d'un plan à l'autre", "qu'un plan suffise",
+                  "ton film est sorti trop tard"):
+        check(f"piège toujours muet — « {texte} »", not _touches(texte),
+              str(sorted(_touches(texte))))
+
+
 def test_le_journal_ne_perd_rien():
     """Le produit détruisait de la donnée tous les soirs, et c'était irrécupérable.
 
@@ -659,6 +686,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_carte_du_gout,
+              test_elision_sans_rouvrir_les_homographes,
               test_le_journal_ne_perd_rien,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
               test_les_rejets_ne_sortent_pas_du_cone,

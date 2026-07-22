@@ -43,12 +43,14 @@ import '../lib/mordu.css';
       que tu vois ses films essentiels. Ici le canon est visible ; dans l'oracle il reste un
       ingrédient invisible de l'arbitrage.</div>
   </a>
-  <a class="route mineur apparait" href="/versus">
+  <div class="route mineur">
     <div class="t">Onboarding « ça ou ça » <span class="tag mort">enterré</span></div>
-    <div class="d">L'ancien écran de préférences par paires. Conservé comme trace : le
-      manifeste l'a écarté parce qu'un choix forcé entre deux films qu'on aime tous les deux
-      fabrique un faux rejet.</div>
-  </a>
+    <div class="d">L'ancien écran de préférences par paires, retiré le 22/07. Le manifeste
+      l'avait écarté parce qu'un choix forcé entre deux films qu'on aime tous les deux
+      fabrique un <b>faux rejet</b> — et pourtant la page continuait de répondre, avec un
+      titre qui disait « enterré ». Un cimetière est un fichier, pas une route qui répond
+      200. Le §8 le raconte ; le code, lui, n'a plus à le porter.</div>
+  </div>
 
   <h2>Sous le capot</h2>
   <a class="route mineur apparait" id="docs" href="#">
@@ -62,7 +64,7 @@ import '../lib/mordu.css';
 </div>
 
 <script>
-  import { API, GET } from '../lib/api.js';
+  import { API, GET, esc } from '../lib/api.js';
 
   const M = (window as any).MORDU;
   M.fond();
@@ -79,7 +81,7 @@ import '../lib/mordu.css';
     st.textContent =
       `oracle en ligne · ${h.films} films · ${e.aretes} arête${e.aretes > 1 ? 's' : ''}${attente}`;
     document.getElementById('aide')!.innerHTML = e.en_attente
-      ? `Un film attend ton ressenti (<b>${e.en_attente.titre}</b>) — l'oracle reste bloqué
+      ? `Un film attend ton ressenti (<b>${esc(e.en_attente.titre)}</b>) — l'oracle reste bloqué
          tant que tu ne l'as pas raconté. C'est la serrure, et c'est voulu.`
       : (e.aretes || (e.graines || []).length
         ? `Pour repartir de zéro : <code>rm backend/recommender/data/etat.json backend/recommender/data/aretes.jsonl</code>`
@@ -105,21 +107,23 @@ import '../lib/mordu.css';
   .accueil .status{display:inline-block;margin-bottom:26px}
   .accueil h2{font-size:17px;color:var(--mut);margin:30px 0 12px;padding-left:0}
   .accueil h2::before{display:none}
-  a.route{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
+  .route{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
     background:var(--panel);padding:16px 18px;margin-bottom:11px;
     transition:border-color .15s,transform .15s}
   a.route:hover{border-color:var(--red);transform:translateX(3px)}
-  a.route .t{font-family:var(--disp);text-transform:uppercase;font-size:21px;line-height:1.05;
+  .route .t{font-family:var(--disp);text-transform:uppercase;font-size:21px;line-height:1.05;
     display:flex;align-items:center;gap:9px}
-  a.route .t::before{content:"";width:9px;height:9px;background:var(--red);flex:0 0 9px}
-  a.route .d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:7px}
-  a.route .u{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:8px;opacity:.7}
-  a.route.mineur .t{font-family:var(--sans);font-size:15px;text-transform:none;font-weight:600}
-  a.route.mineur .t::before{width:7px;height:7px;flex:0 0 7px}
+  .route .t::before{content:"";width:9px;height:9px;background:var(--red);flex:0 0 9px}
+  .route .d{color:var(--mut);font-size:13.5px;line-height:1.5;margin-top:7px}
+  .route .u{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:8px;opacity:.7}
+  .route.mineur .t{font-family:var(--sans);font-size:15px;text-transform:none;font-weight:600}
+  .route.mineur .t::before{width:7px;height:7px;flex:0 0 7px}
   .tag{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
     text-transform:uppercase;padding:2px 6px;background:var(--red);color:#0b0b0b;
     margin-left:8px;vertical-align:2px}
   .tag.mort{background:#2a2d33;color:var(--mut)}
+  /* la trace d'un écran enterré : lisible, mais visiblement pas cliquable */
+  .route.mineur:not(a){opacity:.62;cursor:default}
   @media(max-width:600px){ .accueil .brand{font-size:44px} .accueil{padding:22px 15px 50px} }
 </style>
 </body>

@@ -52,3 +52,27 @@ Déterministe, pas de ML. Réf : `design/dither/`.
 - Images de films : CDN public `image.tmdb.org` (sans clé pour les images ; clé requise pour
   la recherche/catalogue).
 - Langue du projet : **français** (UI, commentaires, docs).
+
+## RÈGLE ABSOLUE POUR TOUT AGENT — n'écris JAMAIS dans les données de Martin
+
+`backend/recommender/data/etat.json`, `aretes.jsonl` et `journal.jsonl` sont ses vraies
+données de spectateur. Elles ne sont ni régénérables, ni reconstituables : deux ans de
+ressentis écrits à la main n'existent nulle part ailleurs.
+
+**Interdits, sans exception :**
+- tout `POST`/`DELETE` vers l'API qui tourne (`:8000`) — y compris « juste pour tester »
+- tout appel à `aretes.ajouter / poser_choix / liberer / deposer / poser_graines /
+  ecrire_etat`, ou à `journal.ecrire`, sans isolation
+- toute écriture directe dans `backend/recommender/data/`
+
+**Le seul mode autorisé pour tester un état :**
+```bash
+MORDU_ETAT_DIR=$(mktemp -d) python3 -c "…"
+```
+et vérifie que l'isolation a bien pris : `assert aretes.DATA_DIR == os.environ["MORDU_ETAT_DIR"]`.
+
+**Pourquoi cette règle existe.** Le 22/07, un sous-agent d'audit a déposé un film dans la
+boîte aux lettres et libéré la serrure de Martin sur *Nightmare Alley*. Il a fallu
+reconstituer l'état à la main depuis une trace de conversation. Les tests, eux, étaient
+isolés depuis des semaines — la règle existait pour `tests_oracle.py` et pour personne
+d'autre. C'est le seul incident de la journée qui ait touché des données irremplaçables.

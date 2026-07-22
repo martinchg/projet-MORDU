@@ -143,7 +143,10 @@ function vueCartes(cartes){
         <div class="frame"><canvas></canvas><span class="reg">${c.label}</span></div>
         <div class="body">
           <div class="annonce">${c.annonce}</div>
-          ${c.de_la_boite?`<div class="souffle">↩ tu me l'avais déposé${typeof c.de_la_boite==="string"?" — "+c.de_la_boite:""}</div>`:``}
+          ${/* le « de qui ? » est tapé à la main et stocké BRUT : il repasse ici à chaque
+                tirage. Une chaîne cassée déposée une fois casserait le rendu des trois
+                cartes tous les soirs suivants. */""}
+          ${c.de_la_boite?`<div class="souffle">↩ tu me l'avais déposé${typeof c.de_la_boite==="string"?" — "+esc(c.de_la_boite):""}</div>`:``}
           <div class="titre"></div>
           <div class="arg">${c.argument}</div>
           ${c.pari?`<div class="pari">Je parie que <b>${c.pari}</b>.</div>`:``}
@@ -170,18 +173,32 @@ async function choisir(el, els, cartes, i, moteur){
   els.forEach((x,j)=>{ if(j!==i) x.classList.add("efface"); x.style.pointerEvents="none"; });
   el.classList.add("revele");                       // le mobile repasse en colonne
   await new Promise(r=>setTimeout(r,60));           // laisse la mise en page se poser
+  // LE RÉSEAU AVANT L'ANIMATION. Le POST partait APRÈS `reveler(1600)`, qui vit dans
+  // requestAnimationFrame : onglet en arrière-plan, rAF ne tire plus, la promesse ne se
+  // résout pas, et le choix ne part jamais. Le scénario réel est banal — tu choisis une
+  // carte, tu changes d'onglet pour chercher où la streamer, tu reviens.
+  // Le listener est {once:true} : au retour, le clic ne se rejoue pas.
+  //
+  // On envoie AUSSI les deux cartes non prises. Ce ne sont PAS des rejets (§3) : elles
+  // servent de témoin — « et si tu avais pris l'une des deux autres, ce soir-là ». Sans
+  // ça, cette comparaison est impossible à reconstruire après coup.
+  try{
+    await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre,pari:c.pari,
+      ecartes:cartes.filter(x=>x.id!==c.id).map(x=>x.id)});
+  }catch(e){
+    console.error("[choix]", e);
+    els.forEach(x=>{ x.classList.remove("efface"); x.style.pointerEvents=""; });
+    el.classList.remove("revele");
+    setStatus(false, "le choix n'est pas parti — reclique");
+    return;                                     // on ne révèle RIEN si le choix a échoué
+  }
+
   const cv=el.querySelector("canvas"), r=cv.getBoundingClientRect();
-  moteur.net=moteur.net; Object.assign(moteur,{});
   await moteur.reveler(1600);
   titre(el.querySelector(".titre"), `${c.title} (${c.year})`);
   const dispo=(c.providers_fr||[]).slice(0,3).join(" · ");
   el.querySelector(".meta").innerHTML=
     `${c.runtime||"?"} min · ${(c.genres||[]).join(", ")}${dispo?`<br>${dispo}`:""}`;
-  // on envoie AUSSI les deux cartes non prises. Ce ne sont pas des rejets (§3) : elles
-  // servent de témoin — « et si tu avais pris l'une des deux autres, ce soir-là ». Sans
-  // ça, cette comparaison est impossible à reconstruire après coup.
-  await POST("/api/choix",{film_id:c.id,titre:c.title,registre:c.registre,pari:c.pari,
-    ecartes:cartes.filter(x=>x.id!==c.id).map(x=>x.id)});
   const bloc=document.createElement("div");
   bloc.className="serrure"; bloc.style.marginTop="22px";
   bloc.innerHTML=`<h3>C'est parti</h3>
@@ -280,15 +297,41 @@ function vueSerrure(a){
     await fetch(API+"/api/renoncer",{method:"POST"});
     router();
   });
-  document.getElementById("env").addEventListener("click",async()=>{
+  // VERROU + FILET. Sans eux, trois clics d'impatience écrivaient TROIS arêtes pour le
+  // même film — mesuré : aretes 5 -> 8, trois lignes au même horodatage. Et les arêtes
+  // sont append-only et brutes « à jamais » (§4) : ça ne se dépollue pas. Le film pesait
+  // alors trois fois dans le profil. C'est le seul défaut trouvé aujourd'hui qui change
+  // ce que l'oracle TIRE.
+  //
+  // Et sans try/catch, une panne réseau ne disait rien : le bouton ne bougeait pas,
+  // #err restait vide, la promesse partait en unhandledrejection. Le texte survivait
+  // (il est dans le champ), mais on ne savait pas que l'envoi avait échoué.
+  const env = document.getElementById("env");
+  let envoiEnCours = false;
+  env.addEventListener("click", async () => {
+    if (envoiEnCours) return;
     const t=txt.value.trim();
     if(t.length<3){ err.textContent="écris au moins une phrase"; txt.focus(); return; }
-    const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
-      registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige});
-    if(r.palmares&&r.palmares.score!==null)
-      // pas de score : cf. profil.html. On compte les paris scellés, on ne les note pas.
-      setStatus(true,`${r.palmares.paris} pari${r.palmares.paris>1?"s":""} scellé${r.palmares.paris>1?"s":""}`);
-    router();
+    envoiEnCours = true;
+    env.disabled = true;
+    const repos = env.textContent;
+    env.textContent = "…";
+    err.textContent = "";
+    try{
+      const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
+        registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige});
+      if(r.palmares)
+        // on compte les paris scellés, on ne les note pas (cf. profil)
+        setStatus(true,`${r.palmares.paris} pari${r.palmares.paris>1?"s":""} scellé${r.palmares.paris>1?"s":""}`);
+      router();
+    }catch(e){
+      // on REND LA MAIN : le texte est toujours dans le champ, il n'est jamais perdu
+      console.error("[ressenti]", e);
+      err.textContent = "l'envoi a échoué — ton texte est intact, réessaie";
+      envoiEnCours = false;
+      env.disabled = false;
+      env.textContent = repos;
+    }
   });
 }
 
@@ -323,7 +366,7 @@ async function rendreBoite(){
   const it=document.getElementById("itemsb");
   it.innerHTML=items.map(b=>`<div class="it" data-id="${b.film_id}">
       <span class="x" title="retirer">✕</span><canvas></canvas>
-      <div class="n">${b.titre||""}${b.source?`<br><span style="opacity:.65">${b.source}</span>`:""}</div>
+      <div class="n">${esc(b.titre||"")}${b.source?`<br><span style="opacity:.65">${esc(b.source)}</span>`:""}</div>
     </div>`).join("");
   it.querySelectorAll(".it").forEach((el,i)=>{
     const b=items[i];

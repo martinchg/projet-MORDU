@@ -138,7 +138,28 @@ def _touches(texte):
     """
     jetons = _norm(texte)
     suite = _suivi(jetons)
+    # DÉ-ÉLISION, mais UNIQUEMENT pour l'ensemble des mots vus. « l'intrigue » sort de
+    # _norm en UN seul jeton : le mot « intrigue » n'était donc jamais reconnu, alors que
+    # « une intrigue » l'était. Mesuré avant correctif :
+    #     _touches("l'intrigue est faible")   -> {}
+    #     _touches("une intrigue faible")     -> {'intrigue'}
+    #
+    # Le correctif NAÏF — dé-éliser dans le flux de jetons — rouvre exactement la famille
+    # d'homographes que l'en-tête de ce fichier déclare avoir purgée, mesuré :
+    #     « il parle d'un ton sec »   -> atmosphère     (« ton » possessif)
+    #     « d'un plan à l'autre »     -> image
+    #     « qu'un plan suffise »      -> image
+    # parce que « d'un » y devient « un » et décale toute la suite.
+    #
+    # D'où la séparation stricte : on enrichit `vus` (recherche de mots isolés), et
+    # `suite` reste bâtie sur les jetons ORIGINAUX — donc les EXPRESSIONS multi-mots
+    # continuent de voir le texte tel qu'il a été écrit.
     vus = set(jetons)
+    for j in jetons:
+        if "'" in j:
+            tete, _, queue = j.partition("'")
+            if tete in ("l", "d", "n", "j", "m", "t", "s", "c", "qu") and queue:
+                vus.add(queue)
     touche = {}
     for cle, ax in AXES.items():
         formes = [m for m in ax["mots"] if m in vus]

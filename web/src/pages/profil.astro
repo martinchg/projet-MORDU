@@ -163,12 +163,27 @@ function barres(items, cle, val){
       });
       b.addEventListener("click",async()=>{
         b.disabled=true; b.textContent="…";
+        // ON NE RECHARGE QUE SI ÇA A MARCHÉ. Avant : `fetch` écrit à la main sans vérifier
+        // r.ok, puis `location.reload()` inconditionnel. Sur une réponse non-2xx, les
+        // descriptions que tu venais d'écrire partaient à la poubelle SANS UN MOT — la
+        // seule perte de saisie réellement destructrice du produit.
+        // (Et POST était importé ici sans être appelé une seule fois.)
+        const echecs=[];
         for(let i=0;i<muets.length;i++){
           const t=(etat[i]||"").trim();
           if(t.length<MIN) continue;
-          await fetch(API+"/api/ressenti",{method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({film_id:muets[i].film_id,texte:t,titre:muets[i].titre,
-                                 registre:"onboarding"})});
+          try{
+            await POST("/api/ressenti",{film_id:muets[i].film_id,texte:t,
+                                        titre:muets[i].titre,registre:"onboarding"});
+          }catch(e){ console.error("[graine muette]",muets[i].titre,e); echecs.push(muets[i].titre); }
+        }
+        if(echecs.length){
+          b.disabled=false; b.textContent="Réessayer →";
+          const av=document.createElement("p");
+          av.className="vide"; av.style.color="var(--red)";
+          av.textContent=`Échec sur ${echecs.join(", ")} — tes textes sont intacts ci-dessus.`;
+          b.parentNode.insertBefore(av,b.nextSibling);
+          return;
         }
         location.reload();
       });
