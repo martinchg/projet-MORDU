@@ -110,7 +110,7 @@ modal.addEventListener("click",e=>{ if(e.target===modal) modal.classList.remove(
 document.getElementById("filters").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   filter=b.dataset.f;
-  document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
   renderGrid();
 });
 

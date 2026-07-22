@@ -257,8 +257,11 @@ function barres(items, cle, val){
       //    deux) et restent dans le cadre — au bord, la carte tronquait les noms.
       ctx.textAlign="center";
       const poses=[];
-      const ordre=[...C.territoires].sort((a,b)=>
-        (b.tiens>0)-(a.tiens>0) || b.n-a.n);            // les tiens et les gros d'abord
+      // les tiens d'abord, puis les gros. On compare des NOMBRES : soustraire deux
+      // booléens marche par coercition en JS mais ne se lit pas, et c'est le genre
+      // d'astuce qui casse silencieusement le jour où l'un des deux devient undefined.
+      const rang = t => (t.tiens > 0 ? 1 : 0);
+      const ordre=[...C.territoires].sort((a,b)=> rang(b) - rang(a) || b.n - a.n);
       ordre.forEach(t=>{
         const mien=t.tiens>0, sur=surbrillance===t.id;
         ctx.font=`${mien?"600 ":""}12px ui-monospace,SF Mono,Menlo,monospace`;

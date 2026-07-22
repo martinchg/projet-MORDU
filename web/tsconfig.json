@@ -1,0 +1,28 @@
+{
+  "extends": "astro/tsconfigs/base",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    // CALIBRAGE DÉLIBÉRÉ. Sans tsconfig, `astro check` sortait 309 erreurs sur 5 pages —
+    // dont 136 « possiblement null » et 78 « any implicite ». Toutes vraies au sens de
+    // TypeScript, toutes SANS INTÉRÊT ici : ce code est du JavaScript écrit à la main qui
+    // manipule le DOM, et personne ne va annoter 36 000 caractères de scripts.
+    //
+    // Un vérificateur qui crie 309 fois ne sera jamais lu, donc il ne servira jamais à
+    // rien. Calibré ainsi, il n'a signalé que ce qui compte — et il a trouvé deux VRAIS
+    // bugs que le build laissait passer : `POST` importé ET redéclaré dans oracle.astro,
+    // `esc` pareil dans versus.astro (avec, en prime, une version locale qui n'échappait
+    // que les guillemets, ni < ni > ni &).
+    //
+    // C'est la même leçon que les mesures purgées ce matin : un signal qui se déclenche
+    // toujours ne dit rien. Le bruit n'est pas de la rigueur.
+    //
+    // LIGNE DE BASE : 27 erreurs, toutes du MÊME motif — TypeScript ignore qu'un
+    // EventTarget est un Element (pas de .closest, pas de .dataset). C'est du JS correct ;
+    // les corriger demanderait 27 casts pour zéro effet à l'usage. On garde le chiffre
+    // comme repère : toute erreur AU-DESSUS de 27 est neuve et mérite un regard.
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "allowJs": true
+  }
+}

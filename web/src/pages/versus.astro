@@ -9,7 +9,7 @@ import Base from '../layouts/Base.astro';
 </Base>
 
 <script>
-  import { API, GET, POST, esc, img } from '../lib/api.js';
+  import { API, GET, POST, esc } from '../lib/api.js';
   const MORDU = (window as any).MORDU;
 
 const N_PAIRS = 7;
@@ -27,7 +27,8 @@ function apiDown(){
   puis recharge la page.</div>`;
 }
 
-function esc(s){ return (s||"").replace(/"/g,"&quot;"); }
+// esc était redéclaré ici, et la version locale n échappait QUE les guillemets —
+// ni < ni > ni &. Celle de lib/api.js est la bonne, on garde l import.
 
 function renderPair(){
   const p=pairs[cur];
