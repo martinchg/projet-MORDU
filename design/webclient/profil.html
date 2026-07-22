@@ -126,7 +126,7 @@
 const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 const st=document.getElementById("status"), vue=document.getElementById("vue");
 async function GET(p){ const r=await fetch(API+p); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
-MORDU.fond({opacite:.72});
+MORDU.fond();
 
 const imgCache={};
 function img(path){

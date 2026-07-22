@@ -7,9 +7,14 @@
  * sections gardent la typo brutale d'Impact mais s'annoncent par une barre rouge —
  * même famille, autre intensité.
  */
+/* Le fond suivait la palette dans son défaut : #08090B, c'est une luminance de 0,0027 —
+ * du noir pur. Sur du noir pur, les cinq premiers paliers de la rampe n'ont plus rien
+ * contre quoi se détacher, et l'écran entier paraît sale plutôt que sombre. Il est
+ * remonté au niveau du premier palier de la nouvelle rampe : toujours la nuit, mais une
+ * nuit où les ombres existent. */
 :root{
-  --bg:#08090B; --panel:#0E1013; --ink:#E9E7DD; --mut:#83837B;
-  --line:rgba(255,255,255,.11); --red:#E4130F; --green:#3FA45A;
+  --bg:#16181C; --panel:#1D2026; --creux:#101216; --ink:#EDEBE2; --mut:#8E8E86;
+  --line:rgba(255,255,255,.13); --red:#E82E28; --green:#3FA45A;
   --disp:"Impact","Haettenschweiler","Arial Narrow",sans-serif;
   --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
   --mono:"SF Mono",ui-monospace,Menlo,monospace;
@@ -55,10 +60,12 @@ h3{font-family:var(--disp);text-transform:uppercase;font-size:21px;letter-spacin
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .compte{font-family:var(--mono);font-size:10px;color:var(--mut);margin-top:8px}
 
-input[type=text]{background:#07080A;color:var(--ink);border:1px solid var(--line);
+/* Les champs étaient en #07080A codé en dur : sur le fond remonté, ils font un TROU noir
+   au milieu de la page. Un champ de saisie doit être un creux léger, pas un puits. */
+input[type=text]{background:var(--creux);color:var(--ink);border:1px solid var(--line);
   padding:11px 13px;font-family:var(--sans);font-size:14px;width:100%;max-width:430px}
 input[type=text]:focus{outline:none;border-color:var(--red)}
-textarea{width:100%;min-height:130px;background:#07080A;color:var(--ink);
+textarea{width:100%;min-height:130px;background:var(--creux);color:var(--ink);
   border:1px solid var(--line);padding:12px;font-family:var(--sans);font-size:14.5px;
   line-height:1.55;resize:vertical}
 textarea:focus{outline:none;border-color:var(--red)}

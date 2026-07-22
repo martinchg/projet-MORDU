@@ -20,10 +20,26 @@
 
   // Palette indexée « nuit + un rouge ». C'est la contrainte qui unifie un catalogue
   // d'affiches qu'on ne contrôle pas : tout traverse les mêmes 11 couleurs.
+  //
+  // RÉPARTITION CORRIGÉE (22/07). « Trop sombre et lassant » n'était pas un problème de
+  // goût mais de MESURE : les clartés perçues (L* de CIELAB) valaient
+  //     3, 10, 18, 30, 42, 46, 59, 74, 91
+  // soit trois quasi-noirs indiscernables en bas, deux paliers jumeaux au milieu (42/46),
+  // et tout le contraste porté par les trois dernières couleurs. Huit des onze teintes
+  // sous une luminance de 0,20, médiane à 0,128 : l'image entière vivait dans le dernier
+  // huitième de l'échelle, d'où la bouillie dans les ombres.
+  //
+  // Les TEINTES n'ont pas bougé d'un degré — c'est la même nuit bleue qui vire au sable.
+  // Seules les clartés ont été redistribuées régulièrement (12 -> 92, pas constant), en
+  // CIELAB pour que « régulier » veuille dire régulier pour l'œil et non pour le calcul.
+  // Éclaircir aurait tué l'identité ; réparer l'échelle la rend enfin lisible.
   const PALETTE = [
-    [10, 12, 16], [20, 28, 40], [34, 46, 60], [52, 74, 84], [80, 104, 112],
-    [120, 110, 72], [168, 138, 84], [208, 178, 120], [234, 228, 212],
-    [150, 58, 58], [214, 32, 28],
+    [30, 32, 34], [45, 53, 66], [64, 76, 92], [80, 102, 113], [104, 128, 136],
+    [161, 150, 110], [204, 172, 116], [231, 200, 141], [238, 232, 216],
+    // les deux rouges ne sont PAS des paliers de la rampe : ce sont des accents. Le
+    // punch a été remonté en clarté avec le reste, sinon il passait sous le milieu de
+    // la rampe et cessait d'être un punch.
+    [168, 62, 58], [232, 46, 40],
   ];
 
   const VERT = `
@@ -281,8 +297,18 @@
   // --- le fond : un champ de bruit qui dérive -----------------------------------------
   // Pas un dégradé animé de plus : c'est la MÊME matière que les affiches, au repos.
   // Presque invisible, mais l'écran cesse d'être mort.
+  // LE FOND — la plus grande surface du produit, et la seule où le tramage ne cache
+  // RIEN. La règle du manifeste (« tramé = ce qui t'est encore caché ») le condamnait
+  // donc depuis le début : il était purement décoratif.
+  //
+  // Il n'est pas supprimé, il est remis à sa VRAIE échelle. À 15 px de cellule et 72 %
+  // d'opacité, c'était un motif qu'on LIT, en concurrence directe avec le texte par-
+  // dessus — d'où la lassitude, et la sensation que « tout est pixelisé ». À 5 px et
+  // 18 %, c'est du GRAIN qu'on sent : la même matière, la même identité, mais l'œil ne
+  // la déchiffre plus, il la subit. C'est la différence entre du grain de pellicule et
+  // un damier.
   function fond(opts) {
-    const o = Object.assign({ opacite: 0.5, vitesse: 1 }, opts);
+    const o = Object.assign({ opacite: 0.18, vitesse: 1 }, opts);
     const cv = document.createElement("canvas");
     cv.setAttribute("aria-hidden", "true");
     Object.assign(cv.style, {
@@ -292,7 +318,7 @@
     document.body.prepend(cv);
     const ctx = cv.getContext("2d");
     let W = 0, H = 0, C = 0, R = 0;
-    const TAILLE = 15;                  // côté d'une cellule, en px
+    const TAILLE = 5;                   // côté d'une cellule : du grain, pas un damier
 
     function redim() {
       W = cv.width = Math.ceil(innerWidth / TAILLE);
