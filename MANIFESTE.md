@@ -111,6 +111,39 @@ Détail d'implémentation : `aretes.VERDICTS` mappe les crans sur `[-1, 1]`, `va
 prend le verdict quand il existe et retombe sur le lexique sinon — donc les arêtes
 anciennes, sans verdict, gardent exactement leur comportement.
 
+**CE QUE MORDU RELIE VRAIMENT — la refonte du moteur (26/07).** Martin : « la plateforme
+n'a pas une valeur d'aimé ou pas aimé, mais de rapprocher un film d'un autre par ce que
+j'aime DANS chacun, et ce que je déteste. » C'est la thèse §4 (« ton goût, c'est ce que tu
+regardes *dans* les films ») poussée à sa conséquence : le moteur ne doit pas relier par
+la valence globale, ni par le SUJET, mais par les ASPECTS SIGNÉS.
+
+Mesuré sur ses 8 ressentis, pour ses deux films détestés (Anatomie, Tenet, même reproche —
+alambiqué + mou), mais aux synopsis opposés (`python3 -m recommender.preuve_aspects`) :
+
+| représentation | Anatomie ~ Tenet | verdict |
+|---|---|---|
+| synopsis (le moteur actuel) | 0,506 | les croit à peine liés |
+| texte entier encodé (MiniLM) | 0,417 | le critère est NOYÉ dans le récit du film |
+| aspects isolés encodés (MiniLM) | 0,258 | MiniLM ne sait pas relier « alambiqué » et « mou » |
+| **AXES NOMMÉS ET SIGNÉS** | **0,707** | ils partagent `structure:-` — ça marche |
+
+Et Tenet(-) contre L'Odyssée(+) — mêmes ingrédients (Nolan, le temps), jugements opposés :
+le synopsis les croit liés (0,368), les axes signés les **opposent** (-0,408), exactement
+comme Martin. La conclusion est nette : **le synopsis relie par l'intrigue ; le critère de
+Martin (clarté, rythme) n'y est pas.** C'est l'« aveuglement au ton » de l'audit GPT,
+confirmé sur ses propres films.
+
+La représentation qui marche : les 10 axes de `axes.py`, chacun porté à un SIGNE, extrait
+du texte par un LLM (`aspects.py`). Ni le lexique de valence (trop grossier), ni un
+embedding de phrase (MiniLM ne discrimine pas les axes) ne suffisent — il faut un jeu
+d'axes NOMMÉS.
+
+État au 26/07 : le MODÈLE est prouvé (étiquetage à la main). L'EXTRACTION est écrite
+(`aspects.py`, dégrade sans clé) mais PAS vérifiée contre le vrai modèle — pas de clé dans
+l'environnement. Le verdict grossier (ci-dessus) reste le plancher utile en attendant ;
+les aspects signés sont le plafond. À NE PAS brancher dans le moteur avant d'avoir vérifié
+l'extraction sur les 8 ressentis contre les étiquettes manuelles.
+
 ## 5. Le dither est le langage entier de l'app
 
 Un seul geste esthétique — la révélation — décliné en trois moments de jeu :

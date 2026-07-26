@@ -416,6 +416,58 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_aspects_signes_relient_par_axe():
+    """Le modèle « aimé/détesté PAR ASPECT » — la refonte demandée le 26/07.
+
+    Mesuré : la valence globale et les embeddings de synopsis ne peuvent pas relier deux
+    films détestés pour la même raison quand leurs sujets diffèrent. Des AXES nommés et
+    SIGNÉS le peuvent — « alambiqué » -> structure:-, partagé par Anatomie et Tenet.
+
+    On teste ici l'AGRÉGATION (profil par axe), pas l'extraction LLM (pas de clé). On
+    simule des aspects extraits et on vérifie que le profil signé se construit bien, et
+    que deux films partageant un axe négatif se relient dans cet espace.
+    """
+    import numpy as np
+    from recommender import aspects
+    from recommender.axes import AXES
+
+    # aspects simulés (ce que le LLM produirait), branchés via le cache du module
+    faux = {
+        "adore-structure": [{"axe": "structure", "polarite": 1, "citation": "clair"},
+                            {"axe": "image", "polarite": 1, "citation": "belle lumière"}],
+        "deteste-alambique": [{"axe": "structure", "polarite": -1, "citation": "alambiqué"}],
+        "deteste-mou": [{"axe": "structure", "polarite": -1, "citation": "sens caché"},
+                       {"axe": "rythme", "polarite": -1, "citation": "mou, long"}],
+    }
+    orig = aspects.extraire
+    aspects.extraire = lambda texte, forcer=False: faux.get((texte or "").strip())
+    try:
+        ars = [{"film_id": 1, "texte": "adore-structure"},
+               {"film_id": 2, "texte": "deteste-alambique"},
+               {"film_id": 3, "texte": "deteste-mou"}]
+        p = aspects.profil_axes(ars)
+        check("le profil d'axes se construit", p["ressentis_analyses"] == 3, str(p))
+        check("structure nette (deux -, un +)", p["axes"]["structure"] < 0,
+              str(p["axes"].get("structure")))
+        check("rythme négatif (le mou)", p["axes"]["rythme"] == -1.0,
+              str(p["axes"].get("rythme")))
+        check("image positive", p["axes"]["image"] == 1.0, str(p["axes"].get("image")))
+        check("sous 5 ressentis, pas fiable", p["assez"] is False)
+
+        # les deux détestés se RELIENT dans l'espace des axes (structure:- partagé) —
+        # là où le synopsis les séparait
+        def vec(asps):
+            v = {k: 0.0 for k in AXES}
+            for it in asps:
+                v[it["axe"]] += it["polarite"]
+            return np.array([v[k] for k in AXES])
+        a, b = vec(faux["deteste-alambique"]), vec(faux["deteste-mou"])
+        cos = float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+        check(f"les deux détestés se relient par leur axe ({cos:+.2f})", cos > 0.4, str(cos))
+    finally:
+        aspects.extraire = orig
+
+
 def test_verdict_dit_la_valence_au_lieu_de_la_deviner():
     """« Un endroit pour juger le film » — la valence DITE, pas devinée du lexique.
 
@@ -720,6 +772,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_carte_du_gout,
+              test_aspects_signes_relient_par_axe,
               test_verdict_dit_la_valence_au_lieu_de_la_deviner,
               test_elision_sans_rouvrir_les_homographes,
               test_le_journal_ne_perd_rien,
