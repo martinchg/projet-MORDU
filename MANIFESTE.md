@@ -84,6 +84,33 @@ la **paire** — une arête d'un graphe biparti personnes—films, avec du texte
 - Stockage : arêtes brutes en append-only, JAMAIS fusionnées à l'écriture. Les profils
   (personne, film) sont des agrégats recalculables. Pas de DB avant que ça le mérite.
 
+**LE VERDICT — la valence DITE, pas devinée (26/07). Et pourquoi ce n'est PAS une note.**
+La valence a toujours piloté le vecteur profil ; jusqu'ici elle était *devinée* du texte
+par un lexique. Or ce lexique est un plancher assumé — mesuré à l'audit, il n'atteint
+qu'une trentaine de valeurs distinctes, et deux ressentis très différents tombent souvent
+sur la même. Martin a donc demandé « un endroit pour juger les films », et il a raison :
+
+> Laisser la personne **déclarer** son verdict est strictement plus fiable que le déduire
+> de ses mots.
+
+Ce n'est pas ressusciter la note du §2, et la distinction est nette :
+- une **note** est une *évaluation fine* (4 contre 4,5) qui produit un classement et ne
+  dit pas quoi lancer ce soir — c'est ça qui est au cimetière ;
+- le **verdict** est une *valence grossière* — cinq crans sémantiques, `adoré / aimé /
+  bof / pas aimé / détesté` (+ `abandonné`), **jamais un chiffre affiché**. C'est
+  exactement la quantité que le moteur calculait déjà, rendue explicite.
+
+Deux garde-fous pour que ça ne dérive pas vers la note :
+- **le texte reste primordial.** Le verdict ne remplace QUE la devinette de valence ; il
+  ne remplace pas le texte, qui seul porte *ce que tu regardes* (tes axes). Un verdict
+  sans texte est plus pauvre qu'un texte sans verdict.
+- **aucun agrégat, aucun classement, aucune moyenne affichée.** Le verdict vit sur
+  l'arête, comme une propriété de la paire. On ne calcule jamais « ta note moyenne ».
+
+Détail d'implémentation : `aretes.VERDICTS` mappe les crans sur `[-1, 1]`, `valence_de()`
+prend le verdict quand il existe et retombe sur le lexique sinon — donc les arêtes
+anciennes, sans verdict, gardent exactement leur comportement.
+
 ## 5. Le dither est le langage entier de l'app
 
 Un seul geste esthétique — la révélation — décliné en trois moments de jeu :

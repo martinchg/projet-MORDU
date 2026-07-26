@@ -140,10 +140,14 @@ function barres(items, cle, val){
         ${muets.map((m,i)=>`<div class="f" data-i="${i}"><canvas></canvas><div class="z">
           <div class="t">${esc(m.titre)}</div>
           <textarea placeholder="ce qui t'a marqué dans ce film…"></textarea>
+          <div class="verdicts" data-v></div>
           <div class="cpt"></div></div></div>`).join("")}
         <button class="btn" id="envm" disabled>Enregistrer →</button>`;
       const b=document.getElementById("envm");
       const etat=muets.map(()=>"");
+      const verdicts=muets.map(()=>null);
+      let CRANS=["adoré","aimé","bof","pas aimé","détesté","abandonné"];
+      try{ CRANS=await GET("/api/verdicts"); }catch(e){}
       el.querySelectorAll(".f").forEach((f,i)=>{
         const m=muets[i], cv=f.querySelector("canvas"), im=img(m.poster_path);
         const go=()=>MORDU.tramer(cv,im,{net:1,temperature:MORDU.temperature(m),w:64,h:96});
@@ -155,6 +159,13 @@ function barres(items, cle, val){
           ta.parentNode.insertBefore(b, ta.nextSibling);
           MORDU.dicter(ta, b);
         }
+        // le verdict : « tu l'as… » — la valence dite, pas déduite du texte
+        const vbox=f.querySelector("[data-v]");
+        vbox.innerHTML=CRANS.map(c=>`<button class="cran" data-c="${esc(c)}">${esc(c)}</button>`).join("");
+        vbox.querySelectorAll(".cran").forEach(bt=>bt.addEventListener("click",()=>{
+          verdicts[i]=bt.dataset.c;
+          vbox.querySelectorAll(".cran").forEach(x=>x.classList.toggle("on",x===bt));
+        }));
         ta.addEventListener("input",()=>{
           etat[i]=ta.value; const n=ta.value.trim().length;
           cp.textContent = n>=MIN ? "✓" : (n?`${n}/${MIN} caractères minimum`:"");
@@ -174,7 +185,8 @@ function barres(items, cle, val){
           if(t.length<MIN) continue;
           try{
             await POST("/api/ressenti",{film_id:muets[i].film_id,texte:t,
-                                        titre:muets[i].titre,registre:"onboarding"});
+                                        titre:muets[i].titre,registre:"onboarding",
+                                        verdict:verdicts[i]});
           }catch(e){ console.error("[graine muette]",muets[i].titre,e); echecs.push(muets[i].titre); }
         }
         if(echecs.length){
@@ -386,6 +398,12 @@ function barres(items, cle, val){
 </script>
 
 <style is:global>
+  .verdicts{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+  .cran{all:unset;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;padding:6px 10px;border:1px solid var(--line);color:var(--mut);
+    transition:border-color .15s,color .15s,background .15s}
+  .cran:hover{border-color:var(--ink);color:var(--ink)}
+  .cran.on{border-color:var(--red);background:var(--red);color:#0b0b0b}
   /* is:global : ces écrans construisent l'essentiel de leur DOM à l'exécution via
      innerHTML. Les styles scopés d'Astro posent un attribut sur les éléments du TEMPLATE
      seulement — les éléments injectés ne l'auraient jamais, et la moitié des règles

@@ -229,6 +229,10 @@ function vueSerrure(a){
       <textarea id="txt" placeholder="ce qui m'est resté…" autofocus></textarea>
       <button class="btn micro" id="micro" hidden>dicter</button>
       <div class="micro-note" id="micronote" hidden></div>
+      <div class="verdict-bloc">
+        <div class="verdict-lbl">Et au fond, tu l'as…</div>
+        <div class="verdicts" id="verdicts"></div>
+      </div>
       <div class="relu" id="relu"></div>
       <div class="row">
         <button class="btn" id="env">Débloquer le prochain →</button>
@@ -249,6 +253,21 @@ function vueSerrure(a){
   // se relit pas. Le manifeste demande d'écrire POUR SOI (§2), or l'écrit invite à polir,
   // à composer une petite critique. Ce qui sort à voix haute est plus près de « ce qu'il
   // t'en reste ».
+  // LE VERDICT — « un endroit pour juger le film ». Ce n'est PAS une note (aucun chiffre) :
+  // c'est la VALENCE, dite au lieu d'être devinée d'un lexique. Le texte reste primordial
+  // (il porte ce que tu regardes) ; le verdict ne remplace que la devinette de valence.
+  let verdict = null;
+  (async () => {
+    let crans = ["adoré","aimé","bof","pas aimé","détesté","abandonné"];
+    try{ crans = await GET("/api/verdicts"); }catch(e){}
+    const box = document.getElementById("verdicts");
+    box.innerHTML = crans.map(c=>`<button class="cran" data-v="${esc(c)}">${esc(c)}</button>`).join("");
+    box.querySelectorAll(".cran").forEach(b=>b.addEventListener("click",()=>{
+      verdict = b.dataset.v;
+      box.querySelectorAll(".cran").forEach(x=>x.classList.toggle("on", x===b));
+    }));
+  })();
+
   const micro=document.getElementById("micro"), mnote=document.getElementById("micronote");
   if(MORDU.dicteeDispo){
     micro.hidden=false; mnote.hidden=false;
@@ -319,7 +338,7 @@ function vueSerrure(a){
     err.textContent = "";
     try{
       const r=await POST("/api/ressenti",{film_id:a.film_id,texte:t,titre:a.titre,
-        registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige});
+        registre:a.registre,pari:a.pari,pari_juste:juge,corrige:corrige,verdict:verdict});
       if(r.palmares)
         // on compte les paris scellés, on ne les note pas (cf. profil)
         setStatus(true,`${r.palmares.paris} pari${r.palmares.paris>1?"s":""} scellé${r.palmares.paris>1?"s":""}`);
@@ -406,6 +425,17 @@ router().then(rendreBoite);
 </script>
 
 <style is:global>
+  /* LE VERDICT — un endroit pour juger le film, sans jamais un chiffre (le manifeste
+     enterre les notes ; ceci est une valence grossière, dite). */
+  .verdict-bloc{margin-top:14px}
+  .verdict-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--mut);margin-bottom:8px}
+  .verdicts{display:flex;gap:8px;flex-wrap:wrap}
+  .cran{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    text-transform:uppercase;padding:8px 13px;border:1px solid var(--line);color:var(--mut);
+    transition:border-color .15s,color .15s,background .15s}
+  .cran:hover{border-color:var(--ink);color:var(--ink)}
+  .cran.on{border-color:var(--red);background:var(--red);color:#0b0b0b}
   /* is:global : ces écrans construisent l'essentiel de leur DOM à l'exécution via
      innerHTML. Les styles scopés d'Astro posent un attribut sur les éléments du TEMPLATE
      seulement — les éléments injectés ne l'auraient jamais, et la moitié des règles

@@ -105,6 +105,42 @@ def _compte(mots, t):
     return len(_trouver(mots, t)[1])
 
 
+# LE VERDICT — la valence DITE, pas devinée.
+#
+# Le manifeste enterre les notes : 4 contre 4,5 ne dit pas quel film on lance ce soir
+# (§2). Ceci n'est PAS une note. C'est une VALENCE grossière — cinq crans sémantiques,
+# jamais un chiffre affiché — et la valence est exactement ce que le moteur calcule déjà
+# en interne, aujourd'hui par un lexique (valence() ci-dessous). Or ce lexique est un
+# plancher assumé : mesuré, il n'atteint qu'une trentaine de valeurs distinctes, et deux
+# ressentis très différents tombent souvent sur la même. Laisser la personne DÉCLARER son
+# verdict est strictement plus fiable que le déduire de ses mots.
+#
+# Le texte reste primordial : c'est lui qui porte CE QUE tu regardes (tes axes, §4). Le
+# verdict ne fait qu'expliciter la valence — il ne remplace pas le texte, il remplace la
+# DEVINETTE de valence.
+VERDICTS = {
+    "adoré": 1.0,
+    "aimé": 0.6,
+    "bof": 0.1,
+    "pas aimé": -0.6,
+    "détesté": -1.0,
+    "abandonné": -0.7,
+}
+
+
+def valence_de(arete):
+    """La valence d'une arête : DITE si un verdict est posé, sinon devinée du texte.
+
+    C'est le seul point où le verdict prime. Partout ailleurs le texte brut reste la
+    source de vérité (le vocabulaire du profil, les axes d'attention).
+    """
+    v = arete.get("verdict")
+    if v in VERDICTS:
+        return VERDICTS[v]
+    base = arete.get("corrige") or arete.get("texte")
+    return valence(base)
+
+
 def valence(texte):
     """-1..1 depuis le texte. Grossier mais PRUDENT — et c'est délibéré.
 
@@ -147,13 +183,17 @@ def ajouter(film_id, texte, titre=None, registre=None, extra=None):
         "film_id": int(film_id),
         "titre": titre,
         "texte": (texte or "").strip(),
-        "valence": valence(texte),
+        "valence": valence(texte),     # figée à titre indicatif ; toutes() la RECALCULE
         "abandonne": bool(_ABANDON.search(texte or "")),
         "registre": registre,          # quel axe avait été choisi ce soir-là
         "date": _now(),
     }
     if extra:
         a.update(extra)
+    # si un verdict explicite est fourni, la valence indicative suit — mais c'est
+    # toutes()/valence_de qui fait foi à la lecture
+    if a.get("verdict") in VERDICTS:
+        a["valence"] = VERDICTS[a["verdict"]]
     with open(ARETES_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(a, ensure_ascii=False) + "\n")
     return a
@@ -184,8 +224,10 @@ def toutes():
             # qui alimente « les mots que tu emploies » dans le profil, parce que ton
             # vocabulaire est la donnée qu'aucun modèle ne doit réécrire.
             base = a.get("corrige") or a.get("texte")
-            a["valence"] = valence(base)
-            a["abandonne"] = bool(_ABANDON.search(base or ""))
+            # le VERDICT explicite prime sur le lexique (voir valence_de) ; sinon on
+            # devine du texte, comme avant.
+            a["valence"] = valence_de(a)
+            a["abandonne"] = a.get("verdict") == "abandonné" or bool(_ABANDON.search(base or ""))
             out.append(a)
     return out
 

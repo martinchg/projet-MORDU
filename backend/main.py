@@ -220,6 +220,7 @@ class RessentiRequest(BaseModel):
     pari: str | None = None
     pari_juste: bool | None = None
     corrige: str | None = None
+    verdict: str | None = None      # adoré / aimé / bof / pas aimé / détesté / abandonné
 
 
 class GraineRequest(BaseModel):
@@ -308,6 +309,8 @@ def api_ressenti(req: RessentiRequest):
                         content=f"serrure armee sur {att.get('titre')}".encode())
 
     extra = {"pari": req.pari, "pari_juste": req.pari_juste}
+    if req.verdict in aretes.VERDICTS:
+        extra["verdict"] = req.verdict          # la valence DITE prime sur le lexique
     # on recopie les deux cartes écartées depuis la serrure : c'est la seule occasion de
     # les attacher au ressenti, ensuite elles sont perdues
     if att.get("ecartes"):
@@ -358,6 +361,13 @@ def api_journal():
     anecdote déguisée en pourcentage.
     """
     return {"compteurs": journal.compteurs(), "evenements": journal.tous()[-50:]}
+
+
+@app.get("/api/verdicts")
+def api_verdicts():
+    """Les crans de jugement, du plus chaud au plus froid. Le front les affiche dans cet
+    ordre. Ce ne sont PAS des notes (pas de chiffre) : une valence grossière, dite."""
+    return list(aretes.VERDICTS.keys())
 
 
 @app.get("/api/evolution")

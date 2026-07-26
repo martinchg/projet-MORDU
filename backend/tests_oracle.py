@@ -416,6 +416,40 @@ def _histoire(mots, registres, jours):
             for i in range(len(mots))]
 
 
+def test_verdict_dit_la_valence_au_lieu_de_la_deviner():
+    """« Un endroit pour juger le film » — la valence DITE, pas devinée du lexique.
+
+    Ce n'est pas une note (pas de chiffre) : cinq crans sémantiques, exactement la valence
+    que le moteur calculait déjà par lexique — un plancher qui n'atteint qu'une trentaine
+    de valeurs. Quand un verdict est posé, il prime ; sinon on retombe sur le texte.
+    """
+    from recommender import aretes as A
+    # un texte que le lexique lirait POSITIF, mais verdict « pas aimé » : le verdict gagne
+    a = {"film_id": 1, "titre": "T", "texte": "magnifique, sublime, une merveille",
+         "verdict": "pas aimé"}
+    check(f"le verdict prime sur le lexique ({A.valence_de(a):+.2f})",
+          A.valence_de(a) == A.VERDICTS["pas aimé"], str(A.valence_de(a)))
+    # sans verdict, le lexique reprend la main
+    b = {"film_id": 1, "titre": "T", "texte": "magnifique, sublime, une merveille"}
+    check("sans verdict, le lexique décide", A.valence_de(b) > 0.3, str(A.valence_de(b)))
+    # les crans vont du chaud au froid, et « adoré » > « aimé » > « pas aimé » > « détesté »
+    v = A.VERDICTS
+    check("l'échelle est ordonnée",
+          v["adoré"] > v["aimé"] > v["bof"] > v["pas aimé"] > v["détesté"], str(v))
+    check("adoré est le maximum", v["adoré"] == 1.0)
+    check("détesté est le minimum", v["détesté"] == -1.0)
+    # un verdict « abandonné » marque bien l'abandon dans la vue recalculée
+    import json, os, tempfile
+    d = tempfile.mkdtemp(); os.environ["MORDU_ETAT_DIR"] = d
+    import importlib; importlib.reload(A)
+    assert A.DATA_DIR == d
+    A.ajouter(42, "je n'ai pas fini", titre="X", extra={"verdict": "abandonné"})
+    lu = A.toutes()[0]
+    check("un verdict abandonné est un abandon", lu["abandonne"] is True and lu["valence"] < 0,
+          str(lu))
+    os.environ["MORDU_ETAT_DIR"] = tempfile.mkdtemp(); importlib.reload(A)
+
+
 def test_elision_sans_rouvrir_les_homographes():
     """« l'intrigue » doit compter comme « intrigue » — sans réveiller les pièges purgés.
 
@@ -686,6 +720,7 @@ if __name__ == "__main__":
               test_boite_aux_lettres, test_pari_de_l_oracle, test_onboarding_exige_des_descriptions, test_profil_visible,
               test_relecture_ne_vole_pas_la_voix,
               test_portrait_lisible, test_carte_du_gout,
+              test_verdict_dit_la_valence_au_lieu_de_la_deviner,
               test_elision_sans_rouvrir_les_homographes,
               test_le_journal_ne_perd_rien,
               test_les_cartes_ecartees_sont_gardees_sans_etre_des_rejets,
